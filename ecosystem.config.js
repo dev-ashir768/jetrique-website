@@ -2,8 +2,7 @@ module.exports = {
     apps: [
         {
             name: 'jetrique-website',
-            script: 'npm',
-            args: 'start',
+            script: './server.js',
             cwd: '/home/repo/website',
             instances: 1,
             autorestart: true,
