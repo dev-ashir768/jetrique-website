@@ -84,6 +84,7 @@ export interface ProductSlot {
   pricePerSeat:       number | null;
   aircraft:           { name: string; saleableSeats: number };
   operatorName:       string | null;
+  operatorLogo:       string | null;
 }
 
 export interface FlightSearchQuery {
@@ -109,6 +110,7 @@ export interface PublicFlight {
     speedKmh:       number | null;
   };
   operatorName: string | null;
+  operatorLogo: string | null;
 }
 
 export interface SeatInfo {
@@ -132,6 +134,7 @@ export interface SlotDetail {
   distanceKm:         number | null;
   aircraft:     { name: string; registrationNo: string; type: string; saleableSeats: number; speedKmh: number | null };
   operatorName: string | null;
+  operatorLogo: string | null;
   product: {
     id:            string;
     name:          string;

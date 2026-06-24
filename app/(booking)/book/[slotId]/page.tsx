@@ -268,7 +268,15 @@ export default function SlotDetailPage() {
             <span>Aircraft: <span className="text-neutral-600">{typeof slot.aircraft === 'string' ? slot.aircraft : slot.aircraft.name}</span></span>
             {slot.product && <span>Product: <span className="text-[#8cc63f]">{slot.product.name}</span></span>}
             {slot.distanceKm && <span>Distance: <span className="text-neutral-600">{slot.distanceKm} km</span></span>}
-            {slot.operatorName && <span>Operator: <span className="text-neutral-600">{slot.operatorName}</span></span>}
+            {slot.operatorName && (
+              <span className="flex items-center gap-1">Operator:
+                {slot.operatorLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={slot.operatorLogo} alt="" className="size-4 rounded object-cover inline-block" />
+                )}
+                <span className="text-neutral-600">{slot.operatorName}</span>
+              </span>
+            )}
           </div>
         </div>
 

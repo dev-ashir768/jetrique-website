@@ -542,7 +542,13 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
         {flight.aircraft.speedKmh && <span>· {flight.aircraft.speedKmh} km/h</span>}
         {flight.distanceKm && <span>· {flight.distanceKm} km</span>}
         {flight.operatorName && (
-          <span className="ml-auto bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">{flight.operatorName}</span>
+          <span className="ml-auto flex items-center gap-1 bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+            {flight.operatorLogo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={flight.operatorLogo} alt="" className="size-3 rounded-full object-cover" />
+            )}
+            {flight.operatorName}
+          </span>
         )}
       </div>
     </button>
@@ -584,7 +590,13 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
         {slot.scheduledArrival && <span>{fmtTime(slot.scheduledArrival)}</span>}
         {dur && <><span>·</span><span>{dur} flight</span></>}
         {slot.operatorName && (
-          <span className="ml-auto bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">{slot.operatorName}</span>
+          <span className="ml-auto flex items-center gap-1 bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+            {slot.operatorLogo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={slot.operatorLogo} alt="" className="size-3 rounded-full object-cover" />
+            )}
+            {slot.operatorName}
+          </span>
         )}
       </div>
       {isSelected && !hasSeats && (
@@ -1608,7 +1620,11 @@ export default function BookPage() {
                 {(bookingKind === "helicopter" ? selectedSlot?.operatorName : fwFlight?.operatorName) && (
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Operator</span>
-                    <span className="font-medium text-neutral-800">
+                    <span className="font-medium text-neutral-800 flex items-center gap-1">
+                      {(bookingKind === "helicopter" ? selectedSlot?.operatorLogo : fwFlight?.operatorLogo) && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={(bookingKind === "helicopter" ? selectedSlot?.operatorLogo : fwFlight?.operatorLogo)!} alt="" className="size-4 rounded object-cover" />
+                      )}
                       {bookingKind === "helicopter" ? selectedSlot?.operatorName : fwFlight?.operatorName}
                     </span>
                   </div>
