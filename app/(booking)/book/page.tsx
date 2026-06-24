@@ -1037,7 +1037,7 @@ export default function BookPage() {
                         <p className="text-sm text-neutral-400">No upcoming flights for this product.</p>
                       </div>
                     ) : (
-                      <HelCalendar slotsByDate={helSlotsByDate} selectedDate={helDate} onSelect={(d) => { setHelDate(d); setSelectedSlot(null); }} />
+                      <HelCalendar slotsByDate={helSlotsByDate} selectedDate={helDate} onSelect={(d) => { setHelDate(d); setSelectedSlot(null); setSelectedSeatId(null); }} />
                     )}
                   </div>
                 )}
@@ -1119,7 +1119,7 @@ export default function BookPage() {
                 {fwOrigin && fwDest && (
                   <div className="space-y-3">
                     <p className="text-sm font-semibold text-neutral-700">Select Date</p>
-                    <FwCalendar availDates={fwAvailDates} priceByDate={fwPriceByDate} selectedDate={fwDate} onSelect={(d) => { setFwDate(d); setFwFlight(null); }} />
+                    <FwCalendar availDates={fwAvailDates} priceByDate={fwPriceByDate} selectedDate={fwDate} onSelect={(d) => { setFwDate(d); setFwFlight(null); setSelectedSeatId(null); }} />
                   </div>
                 )}
 
