@@ -541,7 +541,9 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
         <span>{flight.aircraft.registrationNo} — {flight.aircraft.name}</span>
         {flight.aircraft.speedKmh && <span>· {flight.aircraft.speedKmh} km/h</span>}
         {flight.distanceKm && <span>· {flight.distanceKm} km</span>}
-        {flight.operatorName && <span className="ml-auto font-medium text-neutral-500">{flight.operatorName}</span>}
+        {flight.operatorName && (
+          <span className="ml-auto bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">{flight.operatorName}</span>
+        )}
       </div>
     </button>
   );
@@ -581,7 +583,9 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
       <div className="flex items-center gap-2 mt-0.5 text-xs text-neutral-400">
         {slot.scheduledArrival && <span>{fmtTime(slot.scheduledArrival)}</span>}
         {dur && <><span>·</span><span>{dur} flight</span></>}
-        {slot.operatorName && <span className="ml-auto font-medium text-neutral-500">{slot.operatorName}</span>}
+        {slot.operatorName && (
+          <span className="ml-auto bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">{slot.operatorName}</span>
+        )}
       </div>
       {isSelected && !hasSeats && (
         <p className="text-[10px] text-amber-600 mt-1">⚠ Not enough seats — reduce count</p>
@@ -1364,9 +1368,9 @@ export default function BookPage() {
                 <div className="mt-4 bg-white rounded-[10px] border border-neutral-100 p-5">
                   <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-4">Select Your Seat</p>
                   {seatMap.lopaImageUrl ? (
-                    <div className="relative w-full overflow-hidden rounded-[8px] border border-neutral-100 bg-neutral-50 mb-3">
+                    <div className="relative overflow-hidden rounded-[8px] border border-neutral-100 bg-neutral-50 mb-3 mx-auto" style={{ maxHeight: 260 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={seatMap.lopaImageUrl} alt="Aircraft seat layout" className="w-full h-auto block" />
+                      <img src={seatMap.lopaImageUrl} alt="Aircraft seat layout" className="w-full h-full object-contain block" style={{ maxHeight: 260 }} />
                       {seatMap.seats.map((seat) => {
                         if (seat.seatX == null || seat.seatY == null) return null;
                         const isSel = selectedSeatId === seat.id;
