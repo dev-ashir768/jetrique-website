@@ -1,4 +1,5 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const BASE = process.env.NEXT_PUBLIC_API_URL;
+if (!BASE) throw new Error('NEXT_PUBLIC_API_URL is not set');
 
 type RequestOptions = {
   method?: string;
