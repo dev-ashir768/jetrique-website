@@ -541,6 +541,7 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
         <span>{flight.aircraft.registrationNo} — {flight.aircraft.name}</span>
         {flight.aircraft.speedKmh && <span>· {flight.aircraft.speedKmh} km/h</span>}
         {flight.distanceKm && <span>· {flight.distanceKm} km</span>}
+        {flight.operatorName && <span className="ml-auto font-medium text-neutral-500">{flight.operatorName}</span>}
       </div>
     </button>
   );
@@ -580,6 +581,7 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
       <div className="flex items-center gap-2 mt-0.5 text-xs text-neutral-400">
         {slot.scheduledArrival && <span>{fmtTime(slot.scheduledArrival)}</span>}
         {dur && <><span>·</span><span>{dur} flight</span></>}
+        {slot.operatorName && <span className="ml-auto font-medium text-neutral-500">{slot.operatorName}</span>}
       </div>
       {isSelected && !hasSeats && (
         <p className="text-[10px] text-amber-600 mt-1">⚠ Not enough seats — reduce count</p>
@@ -1495,6 +1497,22 @@ export default function BookPage() {
                   <span className="text-neutral-500">Passengers</span>
                   <span className="font-medium text-neutral-800">{formDataPassengers.length}</span>
                 </div>
+                {(bookingKind === "helicopter" ? selectedSlot?.operatorName : fwFlight?.operatorName) && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">Operator</span>
+                    <span className="font-medium text-neutral-800">
+                      {bookingKind === "helicopter" ? selectedSlot?.operatorName : fwFlight?.operatorName}
+                    </span>
+                  </div>
+                )}
+                {selectedSeatId && seatMap && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">Seat</span>
+                    <span className="font-medium text-neutral-800">
+                      {seatMap.seats.find(s => s.id === selectedSeatId)?.seatNumber ?? '—'}
+                    </span>
+                  </div>
+                )}
                 {customer && (
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Account</span>
