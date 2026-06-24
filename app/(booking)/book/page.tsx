@@ -1245,7 +1245,13 @@ export default function BookPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit(() => setStep("confirm"))}>
+            <form onSubmit={handleSubmit(() => {
+              if (seatMap && seatMap.seats.length > 0 && !selectedSeatId) {
+                document.getElementById("seat-selection-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                return;
+              }
+              setStep("confirm");
+            })}>
 
               {/* Lead contact */}
               <div className="bg-white rounded-[10px] border border-neutral-100 p-5 mb-4">
@@ -1365,79 +1371,177 @@ export default function BookPage() {
 
               {/* Seat Selection */}
               {seatMap && seatMap.seats.length > 0 && (
-                <div className="mt-4 bg-white rounded-[10px] border border-neutral-100 p-5">
-                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-4">Select Your Seat</p>
+                <div id="seat-selection-section" className={cn(
+                  "mt-4 bg-white rounded-[10px] border p-5 transition-all",
+                  !selectedSeatId ? "border-red-200" : "border-neutral-100",
+                )}>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Select Your Seat <span className="text-red-400">*</span></p>
+                    {!selectedSeatId && (
+                      <span className="text-xs text-red-500 font-medium">Please select a seat to continue</span>
+                    )}
+                  </div>
+
                   {seatMap.lopaImageUrl ? (
-                    <div className="relative overflow-hidden rounded-[8px] border border-neutral-100 bg-neutral-50 mb-3 mx-auto" style={{ maxHeight: 260 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={seatMap.lopaImageUrl} alt="Aircraft seat layout" className="w-full h-full object-contain block" style={{ maxHeight: 260 }} />
-                      {seatMap.seats.map((seat) => {
-                        if (seat.seatX == null || seat.seatY == null) return null;
-                        const isSel = selectedSeatId === seat.id;
-                        return (
-                          <button key={seat.id} type="button"
-                            disabled={seat.isTaken}
-                            onClick={() => setSelectedSeatId(isSel ? null : seat.id)}
-                            title={seat.seatNumber}
-                            style={{ left: `${seat.seatX}%`, top: `${seat.seatY}%` }}
-                            className={cn(
-                              "absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 rounded text-[8px] font-bold border transition-all",
-                              seat.isTaken
-                                ? "bg-neutral-300 border-neutral-300 text-neutral-500 cursor-not-allowed"
-                                : isSel
-                                  ? "bg-[#8cc63f] border-[#8cc63f] text-white shadow-md scale-110"
-                                  : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] hover:scale-110 cursor-pointer",
-                            )}>
-                            {seat.seatNumber}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {Array.from(new Set(seatMap.seats.map(s => s.row))).sort((a,b)=>a-b).map(row => (
-                        <div key={row} className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-neutral-300 w-4 text-right">{row}</span>
-                          {seatMap.seats.filter(s=>s.row===row).sort((a,b)=>a.column.localeCompare(b.column)).map(seat => {
+                    /* ── Portal-style: fixed image left + seat panel right ── */
+                    <div className="flex gap-5 items-start">
+                      {/* LOPA image with overlaid circular seat buttons */}
+                      <div className="relative shrink-0 select-none" style={{ width: 200 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={seatMap.lopaImageUrl}
+                          alt="Aircraft LOPA diagram"
+                          className="w-full rounded-lg border border-neutral-200 shadow-sm"
+                          draggable={false}
+                        />
+                        {seatMap.seats.map((seat) => {
+                          if (seat.seatX == null || seat.seatY == null) return null;
+                          const isSel = selectedSeatId === seat.id;
+                          return (
+                            <div
+                              key={seat.id}
+                              className="absolute -translate-x-1/2 -translate-y-1/2"
+                              style={{ left: `${seat.seatX}%`, top: `${seat.seatY}%` }}
+                            >
+                              <button
+                                type="button"
+                                disabled={seat.isTaken}
+                                onClick={() => setSelectedSeatId(isSel ? null : seat.id)}
+                                title={seat.seatNumber}
+                                className={cn(
+                                  "flex items-center justify-center text-[10px] font-bold border-2 rounded-full w-7 h-7",
+                                  "transition-all duration-150 focus:outline-none shadow-sm hover:scale-110",
+                                  seat.isTaken
+                                    ? "bg-neutral-300 border-neutral-400 text-neutral-500 cursor-not-allowed"
+                                    : isSel
+                                      ? "bg-[#8cc63f] border-[#5a8a20] text-white ring-2 ring-[#8cc63f]/40 scale-110"
+                                      : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] cursor-pointer",
+                                )}
+                              >
+                                {seat.seatNumber}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Right panel: seat status list */}
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Seats</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[...seatMap.seats].sort((a, b) => a.seatNumber.localeCompare(b.seatNumber)).map((seat) => {
                             const isSel = selectedSeatId === seat.id;
                             return (
-                              <button key={seat.id} type="button"
+                              <button
+                                key={seat.id}
+                                type="button"
                                 disabled={seat.isTaken}
                                 onClick={() => setSelectedSeatId(isSel ? null : seat.id)}
                                 className={cn(
-                                  "w-9 h-9 rounded-[6px] text-xs font-semibold border transition-all",
+                                  "flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs font-medium transition-all",
                                   seat.isTaken
-                                    ? "bg-neutral-200 border-neutral-200 text-neutral-400 cursor-not-allowed"
+                                    ? "bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed"
                                     : isSel
-                                      ? "bg-[#8cc63f] border-[#8cc63f] text-white shadow-sm scale-105"
-                                      : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] hover:scale-105 cursor-pointer",
-                                )}>
+                                      ? "bg-[#f0f9e8] border-[#8cc63f] text-[#5a8a20]"
+                                      : "bg-white border-neutral-200 text-neutral-600 hover:border-[#8cc63f] hover:bg-[#f0f9e8]/50 cursor-pointer",
+                                )}
+                              >
+                                <div className={cn(
+                                  "size-2 rounded-full shrink-0",
+                                  seat.isTaken ? "bg-neutral-400" : isSel ? "bg-[#8cc63f]" : "bg-neutral-300",
+                                )} />
                                 {seat.seatNumber}
+                                {(seat.isTaken || isSel) && (
+                                  <span className="ml-auto text-[10px] opacity-60">
+                                    {seat.isTaken ? "Taken" : "✓"}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
                         </div>
-                      ))}
+                        {/* Legend */}
+                        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-neutral-100 text-[11px] text-neutral-400">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-[#8cc63f] bg-[#8cc63f] inline-block" /> Selected
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 bg-white inline-block" /> Available
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 rounded-full bg-neutral-300 inline-block" /> Taken
+                          </span>
+                        </div>
+                        {selectedSeatId && (
+                          <p className="text-xs font-semibold text-[#8cc63f]">
+                            Seat {seatMap.seats.find(s => s.id === selectedSeatId)?.seatNumber} selected ✓
+                          </p>
+                        )}
+                      </div>
                     </div>
+                  ) : (
+                    /* ── No LOPA image: row/column grid fallback ── */
+                    <>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {Array.from(new Set(seatMap.seats.map(s => s.row))).sort((a, b) => a - b).map(row => (
+                          <div key={row} className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-neutral-300 w-4 text-right">{row}</span>
+                            {seatMap.seats.filter(s => s.row === row).sort((a, b) => a.column.localeCompare(b.column)).map(seat => {
+                              const isSel = selectedSeatId === seat.id;
+                              return (
+                                <button key={seat.id} type="button"
+                                  disabled={seat.isTaken}
+                                  onClick={() => setSelectedSeatId(isSel ? null : seat.id)}
+                                  className={cn(
+                                    "flex items-center justify-center text-[10px] font-bold border-2 rounded-full w-7 h-7",
+                                    "transition-all duration-150 shadow-sm",
+                                    seat.isTaken
+                                      ? "bg-neutral-300 border-neutral-400 text-neutral-500 cursor-not-allowed"
+                                      : isSel
+                                        ? "bg-[#8cc63f] border-[#5a8a20] text-white ring-2 ring-[#8cc63f]/40"
+                                        : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] hover:scale-110 cursor-pointer",
+                                  )}>
+                                  {seat.seatNumber}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-[11px] text-neutral-400 pt-3 border-t border-neutral-100">
+                        <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full border-2 border-[#8cc63f] bg-[#8cc63f] inline-block" /> Selected</span>
+                        <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 bg-white inline-block" /> Available</span>
+                        <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-neutral-300 inline-block" /> Taken</span>
+                        {selectedSeatId && <span className="ml-auto text-[#8cc63f] font-semibold">Seat selected ✓</span>}
+                      </div>
+                    </>
                   )}
-                  <div className="flex items-center gap-4 text-xs text-neutral-400 pt-3 border-t border-neutral-50">
-                    <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded border-2 border-[#8cc63f] bg-[#8cc63f]/10 inline-block" /> Selected</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded border border-neutral-300 bg-white inline-block" /> Available</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-neutral-200 inline-block" /> Taken</span>
-                    {selectedSeatId && <span className="ml-auto text-[#8cc63f] font-medium">Seat selected ✓</span>}
-                  </div>
                 </div>
               )}
 
               {/* Submit */}
-              <div className="pt-4 flex gap-3">
-                <button type="submit"
-                  className="flex items-center gap-2 px-8 py-3 rounded-[10px] text-white text-sm font-semibold transition-colors"
-                  style={{ background: CHARCOAL }}>
-                  <ArrowRight className="size-4" />
-                  Review Booking
-                </button>
-              </div>
+              {(() => {
+                const seatRequired = !!(seatMap && seatMap.seats.length > 0 && !selectedSeatId);
+                return (
+                  <div className="pt-4 flex gap-3 items-center">
+                    <button type="submit"
+                      disabled={seatRequired}
+                      className={cn(
+                        "flex items-center gap-2 px-8 py-3 rounded-[10px] text-sm font-semibold transition-colors",
+                        seatRequired
+                          ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                          : "text-white",
+                      )}
+                      style={seatRequired ? {} : { background: CHARCOAL }}>
+                      <ArrowRight className="size-4" />
+                      Review Booking
+                    </button>
+                    {seatRequired && (
+                      <span className="text-xs text-red-500">Select a seat first</span>
+                    )}
+                  </div>
+                );
+              })()}
             </form>
           </div>
         )}
