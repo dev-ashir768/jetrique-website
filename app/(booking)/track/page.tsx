@@ -83,7 +83,7 @@ function TrackPageInner() {
               </span>
             </div>
 
-            <div className="border-t border-neutral-50 pt-4 grid grid-cols-2 gap-4">
+            <div className="border-t border-neutral-50 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-neutral-400 mb-1">Product</p>
                 <p className="text-sm text-neutral-700">{result.product}</p>

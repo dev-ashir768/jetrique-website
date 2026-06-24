@@ -109,24 +109,24 @@ function ConfirmPageInner() {
 
         {slot && intent && (
           <div className="bg-white rounded-[10px] border border-neutral-100 p-6 mb-6 space-y-3">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-2 flex-wrap text-sm">
               <span className="text-neutral-400">Flight</span>
               <span className="text-neutral-700 font-medium">{slot.origin} → {slot.destination}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-2 flex-wrap text-sm">
               <span className="text-neutral-400">Departure</span>
               <span className="text-neutral-700">{depStr}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-2 flex-wrap text-sm">
               <span className="text-neutral-400">Passengers</span>
               <span className="text-neutral-700">{paxCount}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-2 flex-wrap text-sm">
               <span className="text-neutral-400">Booked as</span>
               <span className="text-neutral-700">{customer?.name} ({customer?.email})</span>
             </div>
             {slot.product && (
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between gap-2 flex-wrap text-sm">
                 <span className="text-neutral-400">Product</span>
                 <span className="text-[#8cc63f]">{slot.product.name}</span>
               </div>

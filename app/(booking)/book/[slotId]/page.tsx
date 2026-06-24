@@ -56,13 +56,13 @@ function SeatMap({
   if (lopaImageUrl) {
     return (
       <div>
-        <div className="relative w-full overflow-hidden rounded-[8px] border border-neutral-100 bg-neutral-50">
+        <div className="relative w-full overflow-x-auto overflow-y-hidden rounded-[8px] border border-neutral-100 bg-neutral-50">
           <Image
             src={lopaImageUrl}
             alt="Aircraft seat layout"
             width={900}
             height={500}
-            className="w-full h-auto"
+            className="w-full h-auto min-w-[280px]"
             style={{ display: 'block' }}
           />
           {seats.map((seat) => {
@@ -248,19 +248,19 @@ export default function SlotDetailPage() {
               {slot.availableSeats} seats available
             </span>
           </div>
-          <div className="flex items-center gap-8">
-            <div>
-              <p className="text-2xl font-semibold text-neutral-800">{slot.origin}</p>
+          <div className="flex items-center gap-4 sm:gap-8">
+            <div className="shrink-0">
+              <p className="text-xl sm:text-2xl font-semibold text-neutral-800">{slot.origin}</p>
               <p className="text-xs text-neutral-400">{depStr}</p>
             </div>
-            <div className="flex flex-col items-center flex-1">
+            <div className="flex flex-col items-center flex-1 min-w-0">
               <p className="text-xs text-neutral-300">{durStr}</p>
               <div className="w-full h-[1px] bg-neutral-200 my-1 relative">
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[#8cc63f] text-xs">✈</span>
               </div>
             </div>
-            <div>
-              <p className="text-2xl font-semibold text-neutral-800">{slot.destination}</p>
+            <div className="shrink-0 text-right">
+              <p className="text-xl sm:text-2xl font-semibold text-neutral-800">{slot.destination}</p>
               <p className="text-xs text-neutral-400">{arrStr}</p>
             </div>
           </div>
@@ -301,7 +301,7 @@ export default function SlotDetailPage() {
                     <button onClick={() => removePassenger(i)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     ['firstName', 'First Name'],
                     ['lastName', 'Last Name'],
@@ -309,7 +309,7 @@ export default function SlotDetailPage() {
                     ['dateOfBirth', 'Date of Birth'],
                     ['nationality', 'Nationality'],
                   ].map(([field, label]) => (
-                    <div key={field} className={field === 'cnicOrPassport' || field === 'nationality' ? 'col-span-2 md:col-span-1' : ''}>
+                    <div key={field} className={field === 'cnicOrPassport' || field === 'nationality' ? 'col-span-1 sm:col-span-2 md:col-span-1' : ''}>
                       <label className="block text-xs text-neutral-400 mb-1">{label}</label>
                       <input
                         type={field === 'dateOfBirth' ? 'date' : 'text'}
@@ -321,7 +321,7 @@ export default function SlotDetailPage() {
                   ))}
                 </div>
                 {i === 0 && (
-                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-neutral-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-neutral-50">
                     <div>
                       <label className="block text-xs text-neutral-400 mb-1">Email</label>
                       <input

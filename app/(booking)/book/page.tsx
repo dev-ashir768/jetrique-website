@@ -309,7 +309,7 @@ function HelCalendar({
     const days  = new Date(year, month + 1, 0).getDate();
     const start = new Date(year, month, 1).getDay();
     return (
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[240px]">
         <div className="flex items-center justify-center py-2 border-b border-neutral-100">
           <span className="text-sm font-medium text-neutral-700">{MONTH_NAMES[month]} {year}</span>
         </div>
@@ -380,7 +380,7 @@ function HelCalendar({
           <ChevronRight className="size-4 text-neutral-600" />
         </button>
       </div>
-      <div className="flex divide-x divide-neutral-100">
+      <div className="flex divide-x divide-neutral-100 overflow-x-auto">
         {renderMonth(vy, vm)}
         {renderMonth(ny, nm)}
       </div>
@@ -410,7 +410,7 @@ function FwCalendar({
     const days  = new Date(year, month + 1, 0).getDate();
     const start = new Date(year, month, 1).getDay();
     return (
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[240px]">
         <div className="flex items-center justify-center py-2 border-b border-neutral-100">
           <span className="text-sm font-medium text-neutral-700">{MONTH_NAMES[month]} {year}</span>
         </div>
@@ -469,7 +469,7 @@ function FwCalendar({
           <ChevronRight className="size-4 text-neutral-600" />
         </button>
       </div>
-      <div className="flex divide-x divide-neutral-100">
+      <div className="flex divide-x divide-neutral-100 overflow-x-auto">
         {renderMonth(vy, vm)}
         {renderMonth(ny, nm)}
       </div>
@@ -536,7 +536,7 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
           )}
         </div>
       </div>
-      <div className="mt-2 pt-2 border-t border-neutral-100 flex items-center gap-2 text-[11px] text-neutral-400">
+      <div className="mt-2 pt-2 border-t border-neutral-100 flex items-center flex-wrap gap-2 text-[11px] text-neutral-400">
         <Plane className="size-3 shrink-0" />
         <span>{flight.aircraft.registrationNo} — {flight.aircraft.name}</span>
         {flight.aircraft.speedKmh && <span>· {flight.aircraft.speedKmh} km/h</span>}
@@ -1396,9 +1396,9 @@ export default function BookPage() {
 
                   {seatMap.lopaImageUrl ? (
                     /* ── Portal-style: fixed image left + seat panel right ── */
-                    <div className="flex gap-5 items-start">
+                    <div className="flex flex-col sm:flex-row gap-5 items-start">
                       {/* LOPA image with overlaid circular seat buttons */}
-                      <div className="relative shrink-0 select-none" style={{ width: 200 }}>
+                      <div className="relative shrink-0 select-none w-full sm:w-[200px]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={seatMap.lopaImageUrl}
@@ -1440,7 +1440,7 @@ export default function BookPage() {
                       {/* Right panel: seat status list */}
                       <div className="flex-1 min-w-0 space-y-3">
                         <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Seats</p>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {[...seatMap.seats].sort((a, b) => a.seatNumber.localeCompare(b.seatNumber)).map((seat) => {
                             const isSel = selectedSeatId === seat.id;
                             return (
