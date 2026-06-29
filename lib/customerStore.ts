@@ -8,6 +8,10 @@ interface CustomerState {
   hydrated: boolean;
 }
 
+// C-3 SECURITY NOTE: Storing JWT in localStorage exposes it to XSS attacks.
+// A more secure approach would be httpOnly cookies set by the server.
+// Keeping localStorage for now to match the portal's approach, but this should
+// be migrated to httpOnly cookies in a future security hardening pass.
 const KEY = 'jq_customer';
 
 function load(): Omit<CustomerState, 'hydrated'> {

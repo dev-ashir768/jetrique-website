@@ -64,9 +64,18 @@ export default function ContactDetails() {
     },
   });
 
-  const onSubmit = (data: ContactFormData) => {
-    // Simulate API request submission
-    console.log(data);
+  const onSubmit = async (data: ContactFormData) => {
+    // M-4: Submit to API endpoint; fall back to mailto on failure
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    } catch {
+      // Fallback: open mailto so the inquiry is not lost
+      window.location.href = `mailto:info@jetrique.com?subject=${encodeURIComponent(`Contact Inquiry from ${data.name}`)}&body=${encodeURIComponent(data.message)}`;
+    }
     setFormSubmitted(true);
     reset();
   };

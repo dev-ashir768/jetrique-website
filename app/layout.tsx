@@ -9,8 +9,18 @@ import { primaryFont } from "./fonts";
 
 
 export const metadata: Metadata = {
-  title: "Jetrique",
-  description: "Jetrique is a premier luxury travel company offering private jet charters, helicopter services, exclusive stays, and curated destinations.",
+  title: "Jetrique — Private Aviation",
+  description: "Book private aviation flights, helicopter charters, and exclusive stays with Jetrique.",
+  openGraph: {
+    title: "Jetrique — Private Aviation",
+    description: "Book private aviation flights, helicopter charters, and exclusive stays with Jetrique.",
+    type: "website",
+    siteName: "Jetrique",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jetrique — Private Aviation",
+  },
 };
 
 export default function RootLayout({

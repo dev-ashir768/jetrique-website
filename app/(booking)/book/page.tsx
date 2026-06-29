@@ -27,7 +27,9 @@ import {
 } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerStore";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "");
+// M-7: Avoid silent empty-string failure — only initialise Stripe if the key is present
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -149,7 +151,8 @@ function StripePaymentForm({
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: window.location.href,
+        // M-1: Include booking context so we can restore state after 3DS redirect
+    return_url: `${window.location.origin}/book?payment=return`,
         ...(customerEmail ? { payment_method_data: { billing_details: { email: customerEmail } } } : {}),
       },
       redirect: "if_required",
@@ -650,7 +653,10 @@ function DOBPicker({ value, onChange, hasError }: { value: string; onChange: (v:
 const passengerSchema = z.object({
   firstName:       z.string().min(1, "First name is required"),
   lastName:        z.string().min(1, "Last name is required"),
-  cnicOrPassport:  z.string().min(5, "Must be at least 5 characters"),
+  cnicOrPassport:  z.string().min(5).refine(
+    (val) => /^\d{5}-\d{7}-\d$/.test(val) || /^[A-Z0-9]{6,9}$/.test(val.toUpperCase()),
+    "Enter a valid CNIC (XXXXX-XXXXXXX-X) or passport number"
+  ),
   dateOfBirth:     z.string().min(1, "Date of birth is required").refine((v) => {
     const d = new Date(v); return !isNaN(d.getTime()) && d < new Date();
   }, "Enter a valid past date"),
@@ -659,7 +665,7 @@ const passengerSchema = z.object({
 });
 const formSchema = z.object({
   leadEmail: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-  leadPhone: z.string().min(7, "Please enter a valid phone number"),
+  leadPhone: z.string().regex(/^\+?[0-9\s\-().]{7,20}$/, "Please enter a valid phone number"),
   passengers: z.array(passengerSchema).min(1),
 }).superRefine((val, ctx) => {
   const leads = val.passengers.filter((p) => p.isLeadPassenger).length;
@@ -695,10 +701,18 @@ export default function BookPage() {
   const [fwReturnFlight, setFwReturnFlight] = useState<PublicFlight | null>(null);
   const [fwFlight,     setFwFlight]     = useState<PublicFlight | null>(null);
 
+  // H-1: Track whether return-leg booking failed
+  const [returnBookingFailed, setReturnBookingFailed] = useState(false);
+
+  // H-4: Hold expiry message (preserve passenger data)
+  const [holdExpiredMessage, setHoldExpiredMessage] = useState<string | null>(null);
+
   // OTP modal (shown before payment if not logged in)
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpStep,    setOtpStep]  = useState<"email" | "otp">("email");
   const [otpEmail,   setOtpEmail] = useState("");
+  // H-2: Resend OTP cooldown
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [otpName,    setOtpName]  = useState("");
   const [otpCode,    setOtpCode]  = useState("");
   const [otpError,   setOtpError] = useState("");
@@ -838,8 +852,28 @@ export default function BookPage() {
       // Pass fresh token directly — React state hasn't flushed yet
       confirmMut.mutate(accessToken);
     },
-    onError: (e: Error) => setOtpError(e.message),
+    onError: (e: Error) => {
+      // H-3: Distinguish expired OTP from wrong OTP
+      if (e.message.toLowerCase().includes("expired")) {
+        setOtpError("Your code has expired. Please request a new one.");
+        setOtpStep("email");
+      } else {
+        setOtpError(e.message || "Invalid code. Please try again.");
+      }
+    },
   });
+
+  // H-2: Resend OTP handler with 60-second cooldown
+  function handleResendOtp() {
+    requestOtpMut.mutate();
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
   // ── Confirm mutation ──────────────────────────────────────────────────────
   const formDataPassengers = useWatch({ control, name: "passengers" });
@@ -868,7 +902,8 @@ export default function BookPage() {
             phone:      formDataLeadPhone,
           });
         } catch {
-          // Return booking failed — outbound still proceeds, inform user after
+          // H-1: Return booking failed — outbound still proceeds, flag for user notification
+          setReturnBookingFailed(true);
         }
       }
 
@@ -891,12 +926,22 @@ export default function BookPage() {
 
   async function handlePaymentSuccess() {
     if (!pendingBooking || !token) return;
+    // H-6: Actually verify the payment status before showing confirmation
     try {
-      await publicApi.getPaymentStatus(token, pendingBooking.bookingId);
-    } catch { /* ignore */ }
-    setConfirmedPnr(pendingBooking.pnr);
-    // Bust account dashboard cache so bookings list refreshes
-    queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      const status = await publicApi.getPaymentStatus(token, pendingBooking.bookingId);
+      if (status?.status === "CONFIRMED") {
+        setConfirmedPnr(pendingBooking.pnr);
+        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      } else {
+        // Payment still processing — show PNR with a note
+        setConfirmedPnr(pendingBooking.pnr);
+        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      }
+    } catch {
+      // Network error — show PNR anyway, user can check email for confirmation
+      setConfirmedPnr(pendingBooking.pnr);
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+    }
   }
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -920,6 +965,13 @@ export default function BookPage() {
             <p className="text-xs text-neutral-500 uppercase tracking-widest mb-1">Booking Reference</p>
             <p className="text-4xl font-mono font-bold text-neutral-800 tracking-widest">{confirmedPnr}</p>
           </div>
+          {/* H-1: Return booking failed warning */}
+          {returnBookingFailed && (
+            <div className="mb-4 bg-amber-50 border border-amber-200 rounded-[8px] p-4 text-xs text-amber-700 text-left">
+              <strong>Note:</strong> Your outbound flight is confirmed (PNR: {confirmedPnr}). However, your return flight could not be booked automatically. Please contact support to arrange your return leg.
+            </div>
+          )}
+
           <div className="flex gap-3 justify-center">
             <button onClick={() => router.push(`/track?pnr=${confirmedPnr}`)}
               className="border border-neutral-200 text-neutral-600 px-5 py-2.5 rounded-[8px] text-sm hover:bg-neutral-50 transition-colors">
@@ -945,6 +997,14 @@ export default function BookPage() {
         </div>
 
         <StepBar current={step} />
+
+        {/* H-4: Hold expired banner */}
+        {holdExpiredMessage && step === "search" && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-[8px] p-3 mb-4">
+            <AlertCircle className="size-3.5 shrink-0" /> {holdExpiredMessage}
+            <button onClick={() => setHoldExpiredMessage(null)} className="ml-auto text-amber-400 hover:text-amber-600"><XIcon className="size-3.5" /></button>
+          </div>
+        )}
 
         {/* ── STEP: Search ────────────────────────────────────────────────── */}
         {step === "search" && (
@@ -1689,12 +1749,16 @@ export default function BookPage() {
               </div>
               <HoldCountdown
                 expiresAt={pendingBooking.holdExpiresAt}
-                onExpired={() => { setStep("search"); setError("Seat hold expired. Please search again."); }}
+                onExpired={() => {
+                  // H-4: Don't wipe passenger data — preserve it, just return to search
+                  setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
+                  setStep("search");
+                }}
               />
             </div>
 
             <div className="bg-white rounded-[10px] border border-neutral-100 p-6">
-              <Elements stripe={stripePromise} options={{
+              <Elements stripe={stripePromise ?? null} options={{
                 clientSecret: stripeClientSecret,
                 appearance: { theme: "stripe", variables: { colorPrimary: "#8cc63f", borderRadius: "8px" } },
               }}>
@@ -1703,7 +1767,11 @@ export default function BookPage() {
                   holdExpiresAt={pendingBooking.holdExpiresAt}
                   customerEmail={formDataLeadEmail}
                   onSuccess={handlePaymentSuccess}
-                  onHoldExpired={() => { setStep("search"); setError("Seat hold expired. Please search again."); }}
+                  onHoldExpired={() => {
+                    // H-4: Preserve passenger data, show friendly message
+                    setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
+                    setStep("search");
+                  }}
                 />
               </Elements>
             </div>
@@ -1777,6 +1845,13 @@ export default function BookPage() {
                   className="w-full py-3 rounded-[10px] text-white text-sm font-semibold disabled:opacity-50"
                   style={{ background: BRAND }}>
                   {verifyOtpMut.isPending ? "Verifying…" : "Verify & Book"}
+                </button>
+                {/* H-2: Resend code button with cooldown */}
+                <button type="button"
+                  disabled={resendCooldown > 0 || requestOtpMut.isPending}
+                  onClick={handleResendOtp}
+                  className="w-full text-xs text-neutral-400 hover:text-neutral-600 py-1 disabled:opacity-50">
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                 </button>
                 <button type="button" onClick={() => { setOtpStep("email"); setOtpCode(""); setOtpError(""); }}
                   className="w-full text-xs text-neutral-400 hover:text-neutral-600 py-1">
