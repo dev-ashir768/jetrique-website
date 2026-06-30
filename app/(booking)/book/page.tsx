@@ -721,6 +721,7 @@ export default function BookPage() {
   const [pendingBooking, setPendingBooking] = useState<{ bookingId: string; pnr: string; holdExpiresAt: string; totalAmountUsd: number } | null>(null);
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [confirmedPnr, setConfirmedPnr] = useState("");
+  const [paymentOutcome, setPaymentOutcome] = useState<"confirmed" | "processing" | "failed" | null>(null);
 
   // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -823,6 +824,7 @@ export default function BookPage() {
   const { fields, remove } = useFieldArray({ control, name: "passengers" });
 
   const activeSlotId = bookingKind === "helicopter" ? selectedSlot?.id : fwFlight?.id;
+  const activeQuoteId = bookingKind === "helicopter" ? selectedSlot?.quoteId : fwFlight?.quoteId;
   const canProceedToPassengers = !!activeSlotId;
 
   // Seat selection
@@ -891,6 +893,7 @@ export default function BookPage() {
         passengers: paxList,
         phone:      formDataLeadPhone,
         ...(selectedSeatId ? { seatIds: [selectedSeatId] } : {}),
+        ...(activeQuoteId ? { quoteId: activeQuoteId } : {}),
       });
 
       // 2. Create return booking if round-trip and flight selected
@@ -900,6 +903,7 @@ export default function BookPage() {
             slotId:     fwReturnFlight.id,
             passengers: paxList,
             phone:      formDataLeadPhone,
+            ...(fwReturnFlight.quoteId ? { quoteId: fwReturnFlight.quoteId } : {}),
           });
         } catch {
           // H-1: Return booking failed — outbound still proceeds, flag for user notification
@@ -926,21 +930,25 @@ export default function BookPage() {
 
   async function handlePaymentSuccess() {
     if (!pendingBooking || !token) return;
-    // H-6: Actually verify the payment status before showing confirmation
+    // Actually verify the payment status before showing confirmation —
+    // Stripe's client-side "succeeded" only means the card was authorized,
+    // not that our backend has reconciled the webhook yet.
     try {
       const status = await publicApi.getPaymentStatus(token, pendingBooking.bookingId);
-      if (status?.status === "CONFIRMED") {
-        setConfirmedPnr(pendingBooking.pnr);
-        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
-      } else {
-        // Payment still processing — show PNR with a note
-        setConfirmedPnr(pendingBooking.pnr);
-        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
-      }
-    } catch {
-      // Network error — show PNR anyway, user can check email for confirmation
       setConfirmedPnr(pendingBooking.pnr);
+      if (status?.status === "CONFIRMED") {
+        setPaymentOutcome("confirmed");
+      } else if (status?.status === "CANCELLED") {
+        setPaymentOutcome("failed");
+      } else {
+        // PENDING_PAYMENT — webhook hasn't landed yet, still processing
+        setPaymentOutcome("processing");
+      }
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+    } catch {
+      // Couldn't verify — do NOT claim success. Let the user check via Track Status.
+      setConfirmedPnr(pendingBooking.pnr);
+      setPaymentOutcome("processing");
     }
   }
 
@@ -951,22 +959,40 @@ export default function BookPage() {
 
   // ── Render: Confirmed ─────────────────────────────────────────────────────
 
-  if (confirmedPnr) {
+  if (confirmedPnr && paymentOutcome) {
+    const cfg = {
+      confirmed: {
+        bg: "#f0f9e8", iconColor: BRAND, Icon: CheckCircle,
+        title: "Booking Confirmed!",
+        body: "Your request has been received. Our team will contact you to finalise the details.",
+      },
+      processing: {
+        bg: "#fffbeb", iconColor: "#d97706", Icon: Clock,
+        title: "Payment Processing…",
+        body: "Your payment was authorized and is being confirmed. This usually takes a few seconds — check Track Status shortly, or your email for confirmation.",
+      },
+      failed: {
+        bg: "#fef2f2", iconColor: "#dc2626", Icon: AlertCircle,
+        title: "Payment Not Completed",
+        body: "Your booking could not be confirmed because the payment didn't go through. No charge was made — please try booking again.",
+      },
+    }[paymentOutcome];
+
     return (
       <section className="w-full py-16 px-4">
         <div className="container max-w-md mx-auto text-center">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-            style={{ background: "#f0f9e8" }}>
-            <CheckCircle className="size-8" style={{ color: BRAND }} />
+            style={{ background: cfg.bg }}>
+            <cfg.Icon className="size-8" style={{ color: cfg.iconColor }} />
           </div>
-          <h1 className="text-2xl font-medium text-neutral-800 mb-2">Booking Confirmed!</h1>
-          <p className="text-neutral-500 text-sm mb-8">Your request has been received. Our team will contact you to finalise the details.</p>
-          <div className="rounded-[10px] border p-6 mb-6" style={{ borderColor: `${BRAND}30`, background: "#f0f9e8" }}>
+          <h1 className="text-2xl font-medium text-neutral-800 mb-2">{cfg.title}</h1>
+          <p className="text-neutral-500 text-sm mb-8">{cfg.body}</p>
+          <div className="rounded-[10px] border p-6 mb-6" style={{ borderColor: `${cfg.iconColor}30`, background: cfg.bg }}>
             <p className="text-xs text-neutral-500 uppercase tracking-widest mb-1">Booking Reference</p>
             <p className="text-4xl font-mono font-bold text-neutral-800 tracking-widest">{confirmedPnr}</p>
           </div>
           {/* H-1: Return booking failed warning */}
-          {returnBookingFailed && (
+          {paymentOutcome === "confirmed" && returnBookingFailed && (
             <div className="mb-4 bg-amber-50 border border-amber-200 rounded-[8px] p-4 text-xs text-amber-700 text-left">
               <strong>Note:</strong> Your outbound flight is confirmed (PNR: {confirmedPnr}). However, your return flight could not be booked automatically. Please contact support to arrange your return leg.
             </div>
@@ -977,10 +1003,17 @@ export default function BookPage() {
               className="border border-neutral-200 text-neutral-600 px-5 py-2.5 rounded-[8px] text-sm hover:bg-neutral-50 transition-colors">
               Track Status
             </button>
-            <button onClick={() => router.push("/my-account")}
-              className="text-white px-5 py-2.5 rounded-[8px] text-sm transition-colors" style={{ background: BRAND }}>
-              My Bookings
-            </button>
+            {paymentOutcome === "failed" ? (
+              <button onClick={() => { setConfirmedPnr(""); setPaymentOutcome(null); setPendingBooking(null); }}
+                className="text-white px-5 py-2.5 rounded-[8px] text-sm transition-colors" style={{ background: BRAND }}>
+                Try Again
+              </button>
+            ) : (
+              <button onClick={() => router.push("/my-account")}
+                className="text-white px-5 py-2.5 rounded-[8px] text-sm transition-colors" style={{ background: BRAND }}>
+                My Bookings
+              </button>
+            )}
           </div>
         </div>
       </section>

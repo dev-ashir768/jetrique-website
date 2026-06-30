@@ -5,9 +5,6 @@ import QueryProvider from "@/providers/queryProvider";
 import { primaryFont } from "./fonts";
 
 
-
-
-
 export const metadata: Metadata = {
   title: "Jetrique — Private Aviation",
   description: "Book private aviation flights, helicopter charters, and exclusive stays with Jetrique.",

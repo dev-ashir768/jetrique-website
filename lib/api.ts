@@ -83,6 +83,7 @@ export interface ProductSlot {
   scheduledArrival:   string;
   availableSeats:     number;
   pricePerSeat:       number | null;
+  quoteId?:           string;
   aircraft:           { name: string; saleableSeats: number };
   operatorName:       string | null;
   operatorLogo:       string | null;
@@ -102,6 +103,7 @@ export interface PublicFlight {
   availableSeats:     number;
   durationMinutes:    number | null;
   pricePerSeat:       number | null;
+  quoteId?:           string;
   origin:             string;
   destination:        string;
   distanceKm:         number | null;
@@ -167,6 +169,7 @@ export interface WalkInBookingInput {
   passengers: PassengerInput[];
   phone?:     string;
   seatIds?:   string[];
+  quoteId?:   string;
 }
 
 export interface PassengerInput {
