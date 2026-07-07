@@ -26,6 +26,7 @@ import {
   type PublicProduct, type ProductSlot, type PublicFlight,
 } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerStore";
+import { maskPhone, maskCnic } from "@/lib/utils/input-mask";
 
 // M-7: Avoid silent empty-string failure — only initialise Stripe if the key is present
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -1383,12 +1384,15 @@ export default function BookPage() {
                     <label className="block text-xs font-medium text-neutral-500 mb-1.5">Phone Number *</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400" />
-                      <input type="tel" {...register("leadPhone")}
-                        placeholder="+92 300 0000000"
-                        className={cn("w-full border-2 rounded-[8px] pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors",
-                          errors.leadPhone
-                            ? "border-red-300 focus:border-red-400 focus:ring-red-200 bg-red-50/30"
-                            : "border-neutral-200 focus:border-[#8cc63f]/50 focus:ring-[#8cc63f]/20")} />
+                      {(() => { const { onChange: rhfOnChange, ...reg } = register("leadPhone"); return (
+                        <input type="tel" {...reg}
+                          onChange={(e) => { e.target.value = maskPhone(e.target.value); return rhfOnChange(e); }}
+                          placeholder="+92 300 0000000"
+                          className={cn("w-full border-2 rounded-[8px] pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors",
+                            errors.leadPhone
+                              ? "border-red-300 focus:border-red-400 focus:ring-red-200 bg-red-50/30"
+                              : "border-neutral-200 focus:border-[#8cc63f]/50 focus:ring-[#8cc63f]/20")} />
+                      ); })()}
                     </div>
                     {errors.leadPhone && (
                       <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1.5 font-medium">
@@ -1433,9 +1437,18 @@ export default function BookPage() {
                           return (
                             <div key={field_} className={field_ === "cnicOrPassport" ? "sm:col-span-2" : ""}>
                               <label className="block text-xs font-medium text-neutral-500 mb-1.5">{label} *</label>
-                              <input type="text" {...register(key)}
-                                className={cn("w-full border-2 rounded-[8px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#8cc63f]/20 transition-colors",
-                                  err ? "border-red-300 focus:border-red-400 bg-red-50/30" : "border-neutral-200 focus:border-[#8cc63f]/50")} />
+                              {(() => { const { onChange: rhfOnChange, ...reg } = register(key); return (
+                                <input type="text" {...reg}
+                                  onChange={(e) => {
+                                    if (field_ === "cnicOrPassport" && /^\d/.test(e.target.value)) {
+                                      e.target.value = maskCnic(e.target.value);
+                                    }
+                                    return rhfOnChange(e);
+                                  }}
+                                  placeholder={field_ === "cnicOrPassport" ? "42201-1234567-1 or Passport No." : undefined}
+                                  className={cn("w-full border-2 rounded-[8px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#8cc63f]/20 transition-colors",
+                                    err ? "border-red-300 focus:border-red-400 bg-red-50/30" : "border-neutral-200 focus:border-[#8cc63f]/50")} />
+                              ); })()}
                               {err && (
                                 <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1.5 font-medium">
                                   <AlertCircle className="size-3 shrink-0" />
