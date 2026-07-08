@@ -731,10 +731,17 @@ export default function BookPage() {
     queryFn:  () => publicApi.getProducts({ productType: "HELICOPTER" }),
   });
 
-  // Fixed-wing: operational cities for origin/destination dropdowns
+  // Fixed-wing: operational cities for origin dropdown
   const { data: opCities = [] } = useQuery<OperationalCity[]>({
     queryKey: ["public-operational-cities"],
     queryFn:  () => publicApi.getOperationalCities(),
+    staleTime: 10 * 60_000,
+  });
+
+  // Fixed-wing: route graph to constrain valid origin→destination pairs
+  const { data: fwRoutes = [] } = useQuery({
+    queryKey: ["public-routes-fw"],
+    queryFn:  () => publicApi.getRoutes(),
     staleTime: 10 * 60_000,
   });
 
@@ -956,8 +963,17 @@ export default function BookPage() {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const origins  = useMemo(() => opCities.map((c) => c.name).sort(), [opCities]);
-  const fwDests  = useMemo(() => opCities.map((c) => c.name).filter((n) => n !== fwOrigin).sort(), [opCities, fwOrigin]);
+  // Origins = operational cities that appear as an origin in at least one active route
+  const opCityNames = useMemo(() => new Set(opCities.map((c) => c.name)), [opCities]);
+  const origins  = useMemo(
+    () => [...new Set(fwRoutes.map((r) => r.origin))].filter((o) => opCityNames.has(o)).sort(),
+    [fwRoutes, opCityNames],
+  );
+  // Destinations = operational cities reachable from selected origin via an active route
+  const fwDests  = useMemo(
+    () => [...new Set(fwRoutes.filter((r) => r.origin === fwOrigin).map((r) => r.destination))].filter((d) => opCityNames.has(d)).sort(),
+    [fwRoutes, fwOrigin, opCityNames],
+  );
 
   // ── Render: Confirmed ─────────────────────────────────────────────────────
 
