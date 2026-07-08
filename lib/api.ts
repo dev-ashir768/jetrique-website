@@ -22,7 +22,12 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return json.data as T;
 }
 
+export interface OperationalCity {
+  id: string; name: string; code: string; province: string; region: string;
+}
+
 export const publicApi = {
+  getOperationalCities: () => request<OperationalCity[]>('/public/operational-cities'),
   getRoutes:       ()                      => request<Route[]>('/public/routes'),
   getProducts:     (q?: ProductsQuery)     => request<PublicProduct[]>(`/public/products${q ? '?' + new URLSearchParams(q as unknown as Record<string,string>) : ''}`),
   getProductSlots: (productId: string)     => request<ProductSlot[]>(`/public/products/${productId}/slots`),

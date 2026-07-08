@@ -23,7 +23,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { format, isValid } from "date-fns";
 import {
   publicApi, customerApi,
-  type PublicProduct, type ProductSlot, type PublicFlight,
+  type PublicProduct, type ProductSlot, type PublicFlight, type OperationalCity,
 } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerStore";
 import { maskPhone, maskCnic } from "@/lib/utils/input-mask";
@@ -731,10 +731,11 @@ export default function BookPage() {
     queryFn:  () => publicApi.getProducts({ productType: "HELICOPTER" }),
   });
 
-  // Fixed-wing: derive origins/destinations from public routes (not products — FW uses schedules, not products)
-  const { data: fwRoutes = [] } = useQuery({
-    queryKey: ["public-routes-fw"],
-    queryFn:  () => publicApi.getRoutes(),
+  // Fixed-wing: operational cities for origin/destination dropdowns
+  const { data: opCities = [] } = useQuery<OperationalCity[]>({
+    queryKey: ["public-operational-cities"],
+    queryFn:  () => publicApi.getOperationalCities(),
+    staleTime: 10 * 60_000,
   });
 
   const { data: productSlots = [], isLoading: loadSlots } = useQuery({
@@ -955,8 +956,8 @@ export default function BookPage() {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const origins  = useMemo(() => [...new Set(fwRoutes.map((r) => r.origin))].sort(), [fwRoutes]);
-  const fwDests  = useMemo(() => [...new Set(fwRoutes.filter((r) => r.origin === fwOrigin).map((r) => r.destination))].sort(), [fwRoutes, fwOrigin]);
+  const origins  = useMemo(() => opCities.map((c) => c.name).sort(), [opCities]);
+  const fwDests  = useMemo(() => opCities.map((c) => c.name).filter((n) => n !== fwOrigin).sort(), [opCities, fwOrigin]);
 
   // ── Render: Confirmed ─────────────────────────────────────────────────────
 
