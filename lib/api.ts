@@ -67,7 +67,7 @@ export const customerApi = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface Route {
-  id: string; routeCode: string; origin: string; destination: string; distanceKm: number | null;
+  id: string; routeCode: string; origin: string; destination: string; distanceNm: number | null;
 }
 
 export interface ProductsQuery { routeId?: string; productType?: 'HELICOPTER' | 'FIXED_WING'; }
@@ -111,11 +111,11 @@ export interface PublicFlight {
   quoteId?:           string;
   origin:             string;
   destination:        string;
-  distanceKm:         number | null;
+  distanceNm:         number | null;
   aircraft: {
     name:           string;
     registrationNo: string;
-    speedKmh:       number | null;
+    speedKnots:       number | null;
   };
   operatorName: string | null;
   operatorLogo: string | null;
@@ -139,8 +139,8 @@ export interface SlotDetail {
   availableSeats:     number;
   origin:             string;
   destination:        string;
-  distanceKm:         number | null;
-  aircraft:     { name: string; registrationNo: string; type: string; saleableSeats: number; speedKmh: number | null };
+  distanceNm:         number | null;
+  aircraft:     { name: string; registrationNo: string; type: string; saleableSeats: number; speedKnots: number | null };
   operatorName: string | null;
   operatorLogo: string | null;
   product: {

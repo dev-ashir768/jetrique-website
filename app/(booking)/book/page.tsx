@@ -543,8 +543,8 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
       <div className="mt-2 pt-2 border-t border-neutral-100 flex items-center flex-wrap gap-2 text-[11px] text-neutral-400">
         <Plane className="size-3 shrink-0" />
         <span>{flight.aircraft.registrationNo} — {flight.aircraft.name}</span>
-        {flight.aircraft.speedKmh && <span>· {flight.aircraft.speedKmh} km/h</span>}
-        {flight.distanceKm && <span>· {flight.distanceKm} km</span>}
+        {flight.aircraft.speedKnots && <span>· {flight.aircraft.speedKnots} kts</span>}
+        {flight.distanceNm && <span>· {flight.distanceNm} NM</span>}
         {flight.operatorName && (
           <span className="ml-auto flex items-center gap-1 bg-neutral-100 text-neutral-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
             {flight.operatorLogo && (
