@@ -1301,6 +1301,12 @@ export default function BookPage() {
                       </p>
                     </div>
 
+                    {fwDate && (
+                      <p className="text-[11px] text-neutral-400">
+                        Must be on or after departure date ({fwDate})
+                      </p>
+                    )}
+
                     {fwReturnAllFlights.length === 0 ? (
                       <p className="text-xs text-neutral-400 text-center py-4">No return flights available for this route.</p>
                     ) : (
