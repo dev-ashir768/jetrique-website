@@ -1367,9 +1367,22 @@ export default function BookPage() {
         {/* ── STEP: Passengers ────────────────────────────────────────────── */}
         {step === "passengers" && (
           <div className="space-y-6">
-            <button onClick={() => setStep("search")} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600">
-              <ArrowLeft className="size-3.5" /> Back to flight selection
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setStep("search")}
+                className="h-9 px-4 flex items-center gap-2 rounded-[8px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
+              >
+                <ArrowLeft className="size-3.5" /> Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStep("search"); }}
+                className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
 
             {/* Flight summary */}
             <div className="bg-white rounded-[10px] border border-neutral-100 p-4">
@@ -1685,11 +1698,18 @@ export default function BookPage() {
               {(() => {
                 const seatRequired = !!(seatMap && seatMap.seats.length > 0 && !selectedSeatId);
                 return (
-                  <div className="pt-4 flex gap-3 items-center">
+                  <div className="pt-4 flex gap-3 items-center flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setStep("search")}
+                      className="h-11 px-5 flex items-center gap-2 rounded-[10px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
+                    >
+                      <ArrowLeft className="size-4" /> Previous
+                    </button>
                     <button type="submit"
                       disabled={seatRequired}
                       className={cn(
-                        "flex items-center gap-2 px-8 py-3 rounded-[10px] text-sm font-semibold transition-colors",
+                        "flex-1 flex items-center justify-center gap-2 h-11 px-8 rounded-[10px] text-sm font-semibold transition-colors",
                         seatRequired
                           ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                           : "text-white",
@@ -1698,8 +1718,15 @@ export default function BookPage() {
                       <ArrowRight className="size-4" />
                       Review Booking
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep("search")}
+                      className="h-11 px-5 rounded-[10px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
                     {seatRequired && (
-                      <span className="text-xs text-red-500">Select a seat first</span>
+                      <span className="w-full text-xs text-red-500 -mt-1">Select a seat first</span>
                     )}
                   </div>
                 );
@@ -1711,9 +1738,22 @@ export default function BookPage() {
         {/* ── STEP: Confirm ────────────────────────────────────────────────── */}
         {step === "confirm" && (
           <div className="max-w-lg space-y-5">
-            <button onClick={() => setStep("passengers")} className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600">
-              <ArrowLeft className="size-3.5" /> Back
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setStep("passengers")}
+                className="h-9 px-4 flex items-center gap-2 rounded-[8px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
+              >
+                <ArrowLeft className="size-3.5" /> Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("search")}
+                className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
 
             {/* Summary */}
             <div className="bg-white rounded-[10px] border border-neutral-100 p-5">
