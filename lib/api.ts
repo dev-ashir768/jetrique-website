@@ -39,9 +39,15 @@ export const publicApi = {
     return request<TrackResult>(`/public/bookings/track?${p}`);
   },
   createBooking: (token: string, body: WalkInBookingInput) =>
-    request<{ bookingId: string; pnr: string; status: string; holdExpiresAt: string; totalAmountUsd: number; passengers: number }>(
-      '/public/bookings', { method: 'POST', body, token }
-    ),
+    request<{
+      bookingId: string; pnr: string; status: string;
+      holdExpiresAt: string; totalAmountUsd: number; passengers: number;
+      pricing: {
+        farePerPassenger: number; passengerCount: number;
+        baseFareUsd: number; adminCostUsd: number;
+        addOnsTotalUsd: number; totalAmountUsd: number;
+      };
+    }>('/public/bookings', { method: 'POST', body, token }),
   createPaymentIntent: (token: string, bookingId: string) =>
     request<{ clientSecret: string; paymentIntentId: string; amountUsd: number }>(
       `/public/bookings/${bookingId}/payment-intent`, { method: 'POST', token }

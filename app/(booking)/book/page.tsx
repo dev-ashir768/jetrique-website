@@ -737,7 +737,10 @@ export default function BookPage() {
   const [otpError,   setOtpError] = useState("");
 
   // After booking created → payment step
-  const [pendingBooking, setPendingBooking] = useState<{ bookingId: string; pnr: string; holdExpiresAt: string; totalAmountUsd: number } | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<{
+    bookingId: string; pnr: string; holdExpiresAt: string; totalAmountUsd: number;
+    pricing?: { farePerPassenger: number; passengerCount: number; baseFareUsd: number; adminCostUsd: number; addOnsTotalUsd: number; totalAmountUsd: number };
+  } | null>(null);
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [confirmedPnr, setConfirmedPnr] = useState("");
   const [paymentOutcome, setPaymentOutcome] = useState<"confirmed" | "processing" | "failed" | null>(null);
@@ -943,7 +946,7 @@ export default function BookPage() {
       return { booking, pi };
     },
     onSuccess: ({ booking, pi }) => {
-      setPendingBooking({
+      setPendingBooking({ pricing: booking.pricing,
         bookingId:     booking.bookingId,
         pnr:           booking.pnr,
         holdExpiresAt: booking.holdExpiresAt,
@@ -1838,6 +1841,30 @@ export default function BookPage() {
               />
             </div>
 
+            {/* Fare breakdown */}
+            {pendingBooking.pricing && (
+              <div className="bg-white rounded-[10px] border border-neutral-100 p-5 space-y-0">
+                <p className="text-xs text-neutral-400 uppercase tracking-wide mb-3">Fare Summary</p>
+                {[
+                  { label: "Fare per Passenger", value: `$${pendingBooking.pricing.farePerPassenger.toFixed(2)}` },
+                  { label: "No. of Passengers",  value: String(pendingBooking.pricing.passengerCount) },
+                  { label: "Base Fare",           value: `$${pendingBooking.pricing.baseFareUsd.toFixed(2)}` },
+                  ...(pendingBooking.pricing.addOnsTotalUsd > 0
+                    ? [{ label: "Add-ons", value: `$${pendingBooking.pricing.addOnsTotalUsd.toFixed(2)}` }]
+                    : []),
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between text-xs py-2 border-b border-neutral-50 last:border-0">
+                    <span className="text-neutral-500">{label}</span>
+                    <span className="font-medium text-neutral-700">{value}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-3 mt-1 border-t border-neutral-200">
+                  <span className="text-sm font-semibold text-neutral-800">Total Payable</span>
+                  <span className="text-sm font-bold text-neutral-900">${pendingBooking.totalAmountUsd.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-[10px] border border-neutral-100 p-6">
               <Elements stripe={stripePromise ?? null} options={{
                 clientSecret: stripeClientSecret,
@@ -1849,7 +1876,6 @@ export default function BookPage() {
                   customerEmail={formDataLeadEmail}
                   onSuccess={handlePaymentSuccess}
                   onHoldExpired={() => {
-                    // H-4: Preserve passenger data, show friendly message
                     setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
                     setStep("search");
                   }}
