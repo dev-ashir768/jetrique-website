@@ -664,13 +664,31 @@ const passengerSchema = z.object({
   nationality:     z.string().min(1, "Nationality is required"),
   isLeadPassenger: z.boolean(),
 });
+const PK_PHONE_RE = /^(\+92|0092|0)3[0-9]{9}$/;
+
 const formSchema = z.object({
   leadEmail: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-  leadPhone: z.string().regex(/^\+?[0-9\s\-().]{7,20}$/, "Please enter a valid phone number"),
+  leadPhone: z.string().refine(
+    (v) => PK_PHONE_RE.test(v.replace(/[\s\-()]/g, "")),
+    "Please enter a valid mobile number, for example 03111111111 or +923111111111.",
+  ),
   passengers: z.array(passengerSchema).min(1),
 }).superRefine((val, ctx) => {
   const leads = val.passengers.filter((p) => p.isLeadPassenger).length;
   if (leads !== 1) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "One lead passenger required", path: ["passengers"] });
+
+  // Duplicate CNIC/Passport check
+  const seen = new Map<string, number>();
+  val.passengers.forEach((p, i) => {
+    const key = p.cnicOrPassport.replace(/\D/g, "").toLowerCase();
+    if (!key) return;
+    if (seen.has(key)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "This passenger has already been added to the booking. Please enter different passenger details.", path: ["passengers", i, "cnicOrPassport"] });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "This passenger has already been added to the booking. Please enter different passenger details.", path: ["passengers", seen.get(key)!, "cnicOrPassport"] });
+    } else {
+      seen.set(key, i);
+    }
+  });
 });
 type BookingForm = z.infer<typeof formSchema>;
 
