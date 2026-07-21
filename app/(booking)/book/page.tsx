@@ -739,7 +739,7 @@ export default function BookPage() {
   // After booking created → payment step
   const [pendingBooking, setPendingBooking] = useState<{
     bookingId: string; pnr: string; holdExpiresAt: string; totalAmountUsd: number;
-    pricing?: { farePerPassenger: number; passengerCount: number; baseFareUsd: number; adminCostUsd: number; addOnsTotalUsd: number; totalAmountUsd: number };
+    pricing?: { farePerPassenger?: number; passengerCount: number; baseFareUsd: number; addOnsTotalUsd: number; totalAmountUsd: number };
   } | null>(null);
   const [stripeClientSecret, setStripeClientSecret] = useState("");
   const [confirmedPnr, setConfirmedPnr] = useState("");
@@ -1892,7 +1892,9 @@ export default function BookPage() {
               <div className="bg-white rounded-[10px] border border-neutral-100 p-5 space-y-0">
                 <p className="text-xs text-neutral-400 uppercase tracking-wide mb-3">Fare Summary</p>
                 {[
-                  { label: "Fare per Passenger", value: `$${pendingBooking.pricing.farePerPassenger.toFixed(2)}` },
+                  ...(pendingBooking.pricing.farePerPassenger !== undefined
+                    ? [{ label: "Fare per Passenger", value: `$${pendingBooking.pricing.farePerPassenger.toFixed(2)}` }]
+                    : []),
                   { label: "No. of Passengers",  value: String(pendingBooking.pricing.passengerCount) },
                   { label: "Base Fare",           value: `$${pendingBooking.pricing.baseFareUsd.toFixed(2)}` },
                   ...(pendingBooking.pricing.addOnsTotalUsd > 0
