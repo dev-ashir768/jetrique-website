@@ -109,6 +109,7 @@ export interface FlightSearchQuery {
 export interface PublicFlight {
   id:                 string;
   slotCode:           string;
+  flightNumber:       string | null;
   scheduledDeparture: string;
   scheduledArrival:   string;
   availableSeats:     number;
@@ -140,6 +141,7 @@ export interface SeatInfo {
 export interface SlotDetail {
   id:                 string;
   slotCode:           string;
+  flightNumber:       string | null;
   scheduledDeparture: string;
   scheduledArrival:   string;
   availableSeats:     number;

@@ -509,7 +509,7 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
               <Plane className="size-3 text-neutral-400" />
               <div className="flex-1 h-px bg-neutral-200" />
             </div>
-            <p className="text-[9px] font-mono text-neutral-300">{flight.slotCode}</p>
+            <p className="text-[9px] font-mono text-neutral-300">{flight.flightNumber ?? flight.slotCode}</p>
           </div>
           <div className="text-center shrink-0">
             <p className="text-lg font-bold text-neutral-800">
@@ -575,7 +575,7 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs font-bold text-neutral-600">{slot.slotCode}</span>
+        <span className="font-mono text-xs font-bold text-neutral-600">{slot.flightNumber ?? slot.slotCode}</span>
         <span className={cn(
           "text-[10px] px-2 py-0.5 rounded-full font-medium",
           slot.availableSeats > 3 ? "bg-[#f0f9e8] text-[#8cc63f]" :
