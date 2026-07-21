@@ -90,6 +90,7 @@ export interface PublicProduct {
 export interface ProductSlot {
   id:                 string;
   slotCode:           string;
+  flightNumber:       string | null;
   scheduledDeparture: string;
   scheduledArrival:   string;
   availableSeats:     number;
