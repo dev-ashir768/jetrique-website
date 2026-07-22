@@ -43,8 +43,8 @@ export const publicApi = {
       bookingId: string; pnr: string; status: string;
       holdExpiresAt: string; totalAmountUsd: number; passengers: number;
       pricing: {
-        farePerPassenger: number; passengerCount: number;
-        baseFareUsd: number; adminCostUsd: number;
+        farePerPassenger?: number; passengerCount: number;
+        baseFareUsd: number;
         addOnsTotalUsd: number; totalAmountUsd: number;
       };
     }>('/public/bookings', { method: 'POST', body, token }),
