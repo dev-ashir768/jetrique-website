@@ -4,6 +4,32 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+---
+
+## Field Propagation Checklist
+
+**Every time a new field is added, removed, or renamed in the API, check all of these before closing the task.**
+
+```
+□ 1. prisma/schema.prisma              — field on the correct model?
+□ 2. API Prisma selects                — added to list select, detail select, queue select?
+□ 3. API Zod schema                    — create + update schema includes field?
+□ 4. API response / public routes      — field returned? sensitive fields excluded from /public routes?
+□ 5. portal/lib/types/*.ts             — list type, detail type, payload type all updated?
+□ 6. website/lib/api.ts                — interface updated?
+□ 7. Portal form UI                    — input field added? edit form defaultValues pre-filled?
+□ 8. Portal display UI                 — shown in detail/list views where relevant?
+□ 9. Website display UI                — shown where relevant?
+□ 10. Child resource inheritance       — e.g. FlightSchedule.flightNumber → generateSlots → slot.create()?
+```
+
+### Known past gaps (fixed — for reference)
+- `flightNumber` on `Slot` but missing from `bookingDetailSelect` → booking detail showed `null`
+- `adminCostUsd` removed from public API but stayed in `website/lib/api.ts` type (stale)
+- `flightNumber` not on `FlightSchedule` model → `generateSlots` could not inherit it into child slots
+- `BookingDetail.slot` in portal types missing `flightNumber` after API started returning it
+- Phone `0092` prefix accepted by portal forms but rejected by `apis/src/modules/auth/auth.schema.ts`
+
 # Jetrique Homepage Project State & Memory
 
 ## Project Overview
