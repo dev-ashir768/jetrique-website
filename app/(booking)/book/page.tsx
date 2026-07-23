@@ -509,7 +509,7 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
               <Plane className="size-3 text-neutral-400" />
               <div className="flex-1 h-px bg-neutral-200" />
             </div>
-            <p className="text-[9px] font-mono text-neutral-300">{flight.flightNumber ?? flight.slotCode}</p>
+            <p className="text-[9px] font-mono text-neutral-300">{flight.flightNumber || flight.slotCode}</p>
           </div>
           <div className="text-center shrink-0">
             <p className="text-lg font-bold text-neutral-800">
@@ -575,7 +575,7 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs font-bold text-neutral-600">{slot.flightNumber ?? slot.slotCode}</span>
+        <span className="font-mono text-xs font-bold text-neutral-600">{slot.flightNumber || slot.slotCode}</span>
         <span className={cn(
           "text-[10px] px-2 py-0.5 rounded-full font-medium",
           slot.availableSeats > 3 ? "bg-[#f0f9e8] text-[#8cc63f]" :
@@ -784,19 +784,17 @@ export default function BookPage() {
 
   const helDaySlots = helDate ? (helSlotsByDate[helDate] ?? []) : [];
 
-  const { data: fwFlights = [], isFetching: fetchingFlights } = useQuery({
-    queryKey: ["fw-flights", fwOrigin, fwDest, fwDate],
-    queryFn:  () => publicApi.searchFlights({ origin: fwOrigin, destination: fwDest, date: fwDate || undefined }),
-    enabled:  !!fwOrigin && !!fwDest && !!fwDate && bookingKind === "fixed_wing",
-  });
-
-  // For FW calendar: we prefetch a wider range when origin+dest are selected
-  const { data: fwAllFlights = [] } = useQuery({
+  // Fetch all flights for origin+dest; filter by selected date for display
+  const { data: fwAllFlights = [], isFetching: fetchingFlights } = useQuery({
     queryKey: ["fw-flights-all", fwOrigin, fwDest],
     queryFn:  () => publicApi.searchFlights({ origin: fwOrigin, destination: fwDest }),
     enabled:  !!fwOrigin && !!fwDest && bookingKind === "fixed_wing",
     staleTime: 5 * 60_000,
   });
+  const fwFlights = useMemo(
+    () => fwDate ? fwAllFlights.filter(f => f.scheduledDeparture.startsWith(fwDate)) : [],
+    [fwAllFlights, fwDate],
+  );
   const fwAvailDates = useMemo(() => new Set(fwAllFlights.map((f) => f.scheduledDeparture.slice(0, 10))), [fwAllFlights]);
 
   // Return-leg flights for selected return date (specific day)
@@ -1392,7 +1390,7 @@ export default function BookPage() {
                   <Helicopter className="size-4 shrink-0" style={{ color: BRAND }} />
                   <div>
                     <p className="font-medium text-neutral-800">{selectedProduct.name}</p>
-                    <p className="text-neutral-500 text-xs">{fmtDate(selectedSlot.scheduledDeparture)} · {fmtTime(selectedSlot.scheduledDeparture)} · {seatCount} seat{seatCount > 1 ? "s" : ""}</p>
+                    <p className="text-neutral-500 text-xs">{selectedSlot.flightNumber || selectedSlot.slotCode} · {fmtDate(selectedSlot.scheduledDeparture)} · {fmtTime(selectedSlot.scheduledDeparture)} · {seatCount} seat{seatCount > 1 ? "s" : ""}</p>
                   </div>
                 </div>
               )}
@@ -1401,7 +1399,7 @@ export default function BookPage() {
                   <Plane className="size-4 shrink-0" style={{ color: BRAND }} />
                   <div>
                     <p className="font-medium text-neutral-800">{fwFlight.origin} → {fwFlight.destination}</p>
-                    <p className="text-neutral-500 text-xs">{fmtDate(fwFlight.scheduledDeparture)} · {fmtTime(fwFlight.scheduledDeparture)} · {seatCount} seat{seatCount > 1 ? "s" : ""}</p>
+                    <p className="text-neutral-500 text-xs">{fwFlight.flightNumber || fwFlight.slotCode} · {fmtDate(fwFlight.scheduledDeparture)} · {fmtTime(fwFlight.scheduledDeparture)} · {seatCount} seat{seatCount > 1 ? "s" : ""}</p>
                   </div>
                 </div>
               )}
@@ -1770,6 +1768,10 @@ export default function BookPage() {
                       <span className="font-medium text-neutral-800">{selectedProduct.name}</span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-neutral-500">Flight</span>
+                      <span className="font-medium text-neutral-800">{selectedSlot.flightNumber || selectedSlot.slotCode}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-neutral-500">Date & Time</span>
                       <span className="font-medium text-neutral-800">{fmtDate(selectedSlot.scheduledDeparture)} · {fmtTime(selectedSlot.scheduledDeparture)}</span>
                     </div>
@@ -1784,6 +1786,10 @@ export default function BookPage() {
                     <div className="flex justify-between">
                       <span className="text-neutral-500">Route</span>
                       <span className="font-medium text-neutral-800">{fwFlight.origin} → {fwFlight.destination}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Flight</span>
+                      <span className="font-medium text-neutral-800">{fwFlight.flightNumber || fwFlight.slotCode}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-neutral-500">Departure</span>
@@ -1888,30 +1894,28 @@ export default function BookPage() {
             </div>
 
             {/* Fare breakdown */}
-            {pendingBooking.pricing && (
-              <div className="bg-white rounded-[10px] border border-neutral-100 p-5 space-y-0">
-                <p className="text-xs text-neutral-400 uppercase tracking-wide mb-3">Fare Summary</p>
-                {[
-                  ...(pendingBooking.pricing.farePerPassenger !== undefined
-                    ? [{ label: "Fare per Passenger", value: `$${pendingBooking.pricing.farePerPassenger.toFixed(2)}` }]
-                    : []),
-                  { label: "No. of Passengers",  value: String(pendingBooking.pricing.passengerCount) },
-                  { label: "Base Fare",           value: `$${pendingBooking.pricing.baseFareUsd.toFixed(2)}` },
-                  ...(pendingBooking.pricing.addOnsTotalUsd > 0
-                    ? [{ label: "Add-ons", value: `$${pendingBooking.pricing.addOnsTotalUsd.toFixed(2)}` }]
-                    : []),
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between text-xs py-2 border-b border-neutral-50 last:border-0">
-                    <span className="text-neutral-500">{label}</span>
-                    <span className="font-medium text-neutral-700">{value}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pt-3 mt-1 border-t border-neutral-200">
-                  <span className="text-sm font-semibold text-neutral-800">Total Payable</span>
-                  <span className="text-sm font-bold text-neutral-900">${pendingBooking.totalAmountUsd.toFixed(2)}</span>
+            <div className="bg-white rounded-[10px] border border-neutral-100 p-5 space-y-0">
+              <p className="text-xs text-neutral-400 uppercase tracking-wide mb-3">Fare Summary</p>
+              {pendingBooking.pricing && [
+                ...(pendingBooking.pricing.farePerPassenger != null
+                  ? [{ label: "Fare per Passenger", value: `$${pendingBooking.pricing.farePerPassenger.toFixed(2)}` }]
+                  : []),
+                { label: "No. of Passengers",  value: String(pendingBooking.pricing.passengerCount) },
+                { label: "Base Fare",           value: `$${pendingBooking.pricing.baseFareUsd.toFixed(2)}` },
+                ...(pendingBooking.pricing.addOnsTotalUsd > 0
+                  ? [{ label: "Add-ons", value: `$${pendingBooking.pricing.addOnsTotalUsd.toFixed(2)}` }]
+                  : []),
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between text-xs py-2 border-b border-neutral-50 last:border-0">
+                  <span className="text-neutral-500">{label}</span>
+                  <span className="font-medium text-neutral-700">{value}</span>
                 </div>
+              ))}
+              <div className="flex justify-between pt-3 mt-1 border-t border-neutral-200">
+                <span className="text-sm font-semibold text-neutral-800">Total Payable</span>
+                <span className="text-sm font-bold text-neutral-900">${pendingBooking.totalAmountUsd.toFixed(2)}</span>
               </div>
-            )}
+            </div>
 
             <div className="bg-white rounded-[10px] border border-neutral-100 p-6">
               <Elements stripe={stripePromise ?? null} options={{
