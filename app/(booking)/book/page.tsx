@@ -694,6 +694,8 @@ type BookingForm = z.infer<typeof formSchema>;
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+const FORM_DRAFT_KEY = "jetrique_book_draft";
+
 export default function BookPage() {
   const router = useRouter();
   const { isLoggedIn, token, customer, login } = useCustomerAuth();
@@ -845,15 +847,24 @@ export default function BookPage() {
 
   // ── React Hook Form ───────────────────────────────────────────────────────
 
-  const FORM_DRAFT_KEY = "jetrique_book_draft";
-
   const { register, control, handleSubmit, formState: { errors } } = useForm<BookingForm>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
     defaultValues: (() => {
+      if (typeof window === "undefined") {
+        return {
+          leadEmail:  "",
+          leadPhone:  "",
+          passengers: [{ firstName: "", lastName: "", cnicOrPassport: "", dateOfBirth: "", nationality: "", isLeadPassenger: true }],
+        };
+      }
       try {
         const saved = localStorage.getItem(FORM_DRAFT_KEY);
-        if (saved) return JSON.parse(saved) as BookingForm;
+        if (saved) {
+          const raw = JSON.parse(saved) as unknown;
+          const result = formSchema.safeParse(raw);
+          if (result.success) return result.data;
+        }
       } catch { /* ignore */ }
       return {
         leadEmail:  "",
@@ -924,8 +935,11 @@ export default function BookPage() {
   const formDataLeadPhone = useWatch({ control, name: "leadPhone" });
   const formDataLeadEmail = useWatch({ control, name: "leadEmail" });
 
+  const passengersJson = JSON.stringify(formDataPassengers);
+
   // Persist form draft so a page refresh doesn't wipe the passenger details
   useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
       localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({
         leadEmail: formDataLeadEmail,
@@ -933,7 +947,7 @@ export default function BookPage() {
         passengers: formDataPassengers,
       }));
     } catch { /* ignore */ }
-  }, [formDataPassengers, formDataLeadPhone, formDataLeadEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [passengersJson, formDataLeadPhone, formDataLeadEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const confirmMut = useMutation({
     mutationFn: async (freshToken?: string) => {
@@ -1401,7 +1415,7 @@ export default function BookPage() {
               </button>
               <button
                 type="button"
-                onClick={() => goToStep("search")}
+                onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
               >
                 Cancel
@@ -1442,7 +1456,9 @@ export default function BookPage() {
               },
               () => {
                 requestAnimationFrame(() => {
-                  const el = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+                  const el =
+                    document.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+                    document.querySelector<HTMLElement>('.text-red-500, .text-red-600');
                   el?.scrollIntoView({ behavior: "smooth", block: "center" });
                 });
               },
@@ -1752,7 +1768,7 @@ export default function BookPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => goToStep("search")}
+                      onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                       className="h-11 px-5 rounded-[10px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
                     >
                       Cancel
@@ -1780,7 +1796,7 @@ export default function BookPage() {
               </button>
               <button
                 type="button"
-                onClick={() => goToStep("search")}
+                onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
               >
                 Cancel
@@ -1920,8 +1936,8 @@ export default function BookPage() {
               <HoldCountdown
                 expiresAt={pendingBooking.holdExpiresAt}
                 onExpired={() => {
-                  // H-4: Don't wipe passenger data — preserve it, just return to search
-                  setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
+                  try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ }
+                  setHoldExpiredMessage("Your seat hold has expired. Please select your flight again.");
                   goToStep("search");
                 }}
               />
