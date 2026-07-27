@@ -701,6 +701,12 @@ export default function BookPage() {
 
   // ── State ─────────────────────────────────────────────────────────────────
 
+  const topRef = useRef<HTMLDivElement>(null);
+  function goToStep(s: Step) {
+    setStep(s);
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const [step,         setStep]         = useState<Step>("search");
   const [bookingKind,  setBookingKind]  = useState<"helicopter" | "fixed_wing">("helicopter");
   const [tripType,     setTripType]     = useState<"one_way" | "round_trip">("one_way");
@@ -839,14 +845,22 @@ export default function BookPage() {
 
   // ── React Hook Form ───────────────────────────────────────────────────────
 
+  const FORM_DRAFT_KEY = "jetrique_book_draft";
+
   const { register, control, handleSubmit, formState: { errors } } = useForm<BookingForm>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
-    defaultValues: {
-      leadEmail:  "",
-      leadPhone:  "",
-      passengers: [{ firstName: "", lastName: "", cnicOrPassport: "", dateOfBirth: "", nationality: "", isLeadPassenger: true }],
-    },
+    defaultValues: (() => {
+      try {
+        const saved = localStorage.getItem(FORM_DRAFT_KEY);
+        if (saved) return JSON.parse(saved) as BookingForm;
+      } catch { /* ignore */ }
+      return {
+        leadEmail:  "",
+        leadPhone:  "",
+        passengers: [{ firstName: "", lastName: "", cnicOrPassport: "", dateOfBirth: "", nationality: "", isLeadPassenger: true }],
+      };
+    })(),
   });
 
   const { fields, remove } = useFieldArray({ control, name: "passengers" });
@@ -910,6 +924,17 @@ export default function BookPage() {
   const formDataLeadPhone = useWatch({ control, name: "leadPhone" });
   const formDataLeadEmail = useWatch({ control, name: "leadEmail" });
 
+  // Persist form draft so a page refresh doesn't wipe the passenger details
+  useEffect(() => {
+    try {
+      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({
+        leadEmail: formDataLeadEmail,
+        leadPhone: formDataLeadPhone,
+        passengers: formDataPassengers,
+      }));
+    } catch { /* ignore */ }
+  }, [formDataPassengers, formDataLeadPhone, formDataLeadEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const confirmMut = useMutation({
     mutationFn: async (freshToken?: string) => {
       const t = freshToken ?? token!;
@@ -951,13 +976,14 @@ export default function BookPage() {
         totalAmountUsd: booking.totalAmountUsd,
       });
       setStripeClientSecret(pi.clientSecret);
-      setStep("payment");
+      goToStep("payment");
     },
     onError: (e: Error) => setError(e.message),
   });
 
   async function handlePaymentSuccess() {
     if (!pendingBooking || !token) return;
+    try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ }
     // Actually verify the payment status before showing confirmation —
     // Stripe's client-side "succeeded" only means the card was authorized,
     // not that our backend has reconciled the webhook yet.
@@ -1059,7 +1085,7 @@ export default function BookPage() {
 
   return (
     <section className="w-full py-10 px-4">
-      <div className="container max-w-4xl mx-auto">
+      <div ref={topRef} className="container max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-medium text-neutral-800">Book Your Flight</h1>
@@ -1349,7 +1375,7 @@ export default function BookPage() {
             <div className="pt-2">
               <button type="button"
                 disabled={!canProceedToPassengers}
-                onClick={() => setStep("passengers")}
+                onClick={() => goToStep("passengers")}
                 className={cn(
                   "flex items-center gap-2 px-8 py-3 rounded-[10px] text-sm font-semibold transition-all",
                   canProceedToPassengers ? "text-white" : "bg-neutral-100 text-neutral-400 cursor-not-allowed",
@@ -1368,14 +1394,14 @@ export default function BookPage() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setStep("search")}
+                onClick={() => goToStep("search")}
                 className="h-9 px-4 flex items-center gap-2 rounded-[8px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
               >
                 <ArrowLeft className="size-3.5" /> Previous
               </button>
               <button
                 type="button"
-                onClick={() => { setStep("search"); }}
+                onClick={() => goToStep("search")}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
               >
                 Cancel
@@ -1406,13 +1432,21 @@ export default function BookPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit(() => {
-              if (seatMap && seatMap.seats.length > 0 && !selectedSeatId) {
-                document.getElementById("seat-selection-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
-                return;
-              }
-              setStep("confirm");
-            })}>
+            <form onSubmit={handleSubmit(
+              () => {
+                if (seatMap && seatMap.seats.length > 0 && !selectedSeatId) {
+                  document.getElementById("seat-selection-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  return;
+                }
+                goToStep("confirm");
+              },
+              () => {
+                requestAnimationFrame(() => {
+                  const el = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                });
+              },
+            )}>
 
               {/* Lead contact */}
               <div className="bg-white rounded-[10px] border border-neutral-100 p-5 mb-4">
@@ -1699,7 +1733,7 @@ export default function BookPage() {
                   <div className="pt-4 flex gap-3 items-center flex-wrap">
                     <button
                       type="button"
-                      onClick={() => setStep("search")}
+                      onClick={() => goToStep("search")}
                       className="h-11 px-5 flex items-center gap-2 rounded-[10px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
                     >
                       <ArrowLeft className="size-4" /> Previous
@@ -1718,7 +1752,7 @@ export default function BookPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStep("search")}
+                      onClick={() => goToStep("search")}
                       className="h-11 px-5 rounded-[10px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
                     >
                       Cancel
@@ -1739,14 +1773,14 @@ export default function BookPage() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setStep("passengers")}
+                onClick={() => goToStep("passengers")}
                 className="h-9 px-4 flex items-center gap-2 rounded-[8px] border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors font-medium"
               >
                 <ArrowLeft className="size-3.5" /> Previous
               </button>
               <button
                 type="button"
-                onClick={() => setStep("search")}
+                onClick={() => goToStep("search")}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
               >
                 Cancel
@@ -1888,7 +1922,7 @@ export default function BookPage() {
                 onExpired={() => {
                   // H-4: Don't wipe passenger data — preserve it, just return to search
                   setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
-                  setStep("search");
+                  goToStep("search");
                 }}
               />
             </div>
@@ -1929,7 +1963,7 @@ export default function BookPage() {
                   onSuccess={handlePaymentSuccess}
                   onHoldExpired={() => {
                     setHoldExpiredMessage("Your seat hold has expired. Please select your flight again — your passenger details have been saved.");
-                    setStep("search");
+                    goToStep("search");
                   }}
                 />
               </Elements>
