@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plane, Clock, CheckCircle, XCircle, AlertCircle,
-  Loader2, LogOut, CalendarDays, ArrowRight,
+  Loader2, LogOut, CalendarDays, ArrowRight, CreditCard,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { customerApi, type CustomerBooking } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerStore";
 
@@ -28,10 +29,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   NO_SHOW:         { label: "No Show",          color: "#6b7280", bg: "#f9fafb", icon: <AlertCircle className="size-3.5" /> },
 };
 
-function BookingCard({ b }: { b: CustomerBooking }) {
-  const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.CONFIRMED;
+function BookingCard({ b, onPayNow }: { b: CustomerBooking; onPayNow: (bookingId: string) => void }) {
+  const cfg      = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.CONFIRMED;
+  const holdSecs = b.holdExpiresAt ? Math.floor((new Date(b.holdExpiresAt).getTime() - Date.now()) / 1000) : 0;
+  const holdAlive = b.status === "PENDING_PAYMENT" && holdSecs > 0;
   return (
-    <div className="bg-white rounded-[12px] border border-neutral-100 p-5 hover:border-neutral-200 transition-colors">
+    <div className={cn("bg-white rounded-[12px] border p-5 transition-colors",
+      holdAlive ? "border-amber-200 hover:border-amber-300" : "border-neutral-100 hover:border-neutral-200")}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <p className="font-mono text-sm font-bold text-neutral-800 tracking-widest">{b.pnr}</p>
@@ -59,20 +63,30 @@ function BookingCard({ b }: { b: CustomerBooking }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-neutral-50">
+      <div className="flex items-center justify-between pt-3 border-t border-neutral-50 gap-3 flex-wrap">
         <div className="flex items-center gap-3 text-xs text-neutral-400">
           <span className="flex items-center gap-1">
             <CalendarDays className="size-3" /> {fmtDate(b.createdAt)}
           </span>
         </div>
-        <span className="text-sm font-bold text-neutral-800">${Number(b.totalAmountUsd).toFixed(2)}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-neutral-800">${Number(b.totalAmountUsd).toFixed(2)}</span>
+          {holdAlive && (
+            <button onClick={() => onPayNow(b.bookingId)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-white text-xs font-semibold"
+              style={{ background: "#d97706" }}>
+              <CreditCard className="size-3" /> Pay Now
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 export default function AccountPage() {
-  const router = useRouter();
+  const router  = useRouter();
+  function handlePayNow(bookingId: string) { router.push(`/pay/${bookingId}`); }
   const { isLoggedIn, hydrated, token, customer, logout } = useCustomerAuth();
 
   useEffect(() => {
@@ -160,7 +174,7 @@ export default function AccountPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {bookings.map(b => <BookingCard key={b.pnr} b={b} />)}
+              {bookings.map(b => <BookingCard key={b.pnr} b={b} onPayNow={handlePayNow} />)}
             </div>
           )}
         </div>

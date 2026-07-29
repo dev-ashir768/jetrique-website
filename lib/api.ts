@@ -26,8 +26,22 @@ export interface OperationalCity {
   id: string; name: string; code: string; province: string; region: string;
 }
 
+export interface Nationality {
+  id: number; name: string; code: string; flag: string | null;
+}
+
+export interface Airport {
+  id: string; name: string; code: string;
+}
+export interface CityAirportGroup {
+  cityId: string; cityName: string; cityCode: string; province: string; region: string;
+  airports: Airport[];
+}
+
 export const publicApi = {
-  getOperationalCities: () => request<OperationalCity[]>('/public/operational-cities'),
+  getOperationalCities:  () => request<OperationalCity[]>('/public/operational-cities'),
+  getAirportsGrouped:    () => request<CityAirportGroup[]>('/public/airports/grouped'),
+  getNationalities:      (token: string) => request<Nationality[]>('/nationalities', { token }),
   getRoutes:       ()                      => request<Route[]>('/public/routes'),
   getProducts:     (q?: ProductsQuery)     => request<PublicProduct[]>(`/public/products${q ? '?' + new URLSearchParams(q as unknown as Record<string,string>) : ''}`),
   getProductSlots: (productId: string)     => request<ProductSlot[]>(`/public/products/${productId}/slots`),
@@ -74,6 +88,8 @@ export const customerApi = {
 
 export interface Route {
   id: string; routeCode: string; origin: string; destination: string; distanceNm: number | null;
+  originAirportCode: string; destinationAirportCode: string;
+  originCityName: string; destinationCityName: string;
 }
 
 export interface ProductsQuery { routeId?: string; productType?: 'HELICOPTER' | 'FIXED_WING'; }
@@ -184,15 +200,24 @@ export interface WalkInBookingInput {
   phone?:     string;
   seatIds?:   string[];
   quoteId?:   string;
+  addOns?:    { addOnId: string; quantity: number }[];
 }
+
+export type PassengerType  = 'ADULT' | 'CHILD' | 'INFANT';
+export type PassengerTitle = 'MR' | 'MRS' | 'MS' | 'MASTER' | 'MISS';
 
 export interface PassengerInput {
   firstName:       string;
   lastName:        string;
   cnicOrPassport:  string;
+  guardianCnic?:   string;
   dateOfBirth:     string;
-  nationality:     string;
+  nationalityId:   number;
+  nationalityCode: string;
   isLeadPassenger: boolean;
+  title?:          PassengerTitle | null;
+  contactEmail?:   string;
+  contactPhone?:   string;
 }
 
 export interface CustomerProfile {
@@ -201,14 +226,16 @@ export interface CustomerProfile {
   name:        string;
   phone:       string | null;
   cnic:        string | null;
-  nationality: string | null;
+  nationality: { id: number; name: string; code: string; flag: string | null } | null;
 }
 
 export interface CustomerBooking {
+  bookingId:       string;
   pnr:             string;
   status:          string;
   totalPassengers: number;
   totalAmountUsd:  number;
+  holdExpiresAt:   string | null;
   product:         string;
   departure:       string;
   arrival:         string;
