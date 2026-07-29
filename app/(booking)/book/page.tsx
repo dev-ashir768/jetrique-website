@@ -1798,13 +1798,14 @@ export default function BookPage() {
                           onSelect={(range) => {
                             if (!range) return;
                             if (range.from && isValid(range.from)) {
-                              const iso = format(range.from, "yyyy-MM-dd");
-                              setFwDate(iso); setFwFlight(null); setSelectedSeatIds([]);
-                            }
-                            if (range.to && isValid(range.to)) {
-                              setFwReturnDate(format(range.to, "yyyy-MM-dd"));
-                            } else if (range.from && !range.to) {
-                              setFwReturnDate("");
+                              const depIso = format(range.from, "yyyy-MM-dd");
+                              setFwDate(depIso); setFwFlight(null); setSelectedSeatIds([]);
+                              if (range.to && isValid(range.to)) {
+                                const retIso = format(range.to, "yyyy-MM-dd");
+                                setFwReturnDate(retIso >= depIso ? retIso : depIso);
+                              } else {
+                                setFwReturnDate("");
+                              }
                             }
                           }}
                           disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
