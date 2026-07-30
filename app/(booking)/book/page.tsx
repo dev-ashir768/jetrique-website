@@ -152,11 +152,18 @@ function StripePaymentForm({
     setLoading(true);
     setPayError("");
 
+    // Submit elements first so Stripe validates the mounted PaymentElement
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      setLoading(false);
+      setPayError(submitError.message ?? "Please check your payment details");
+      return;
+    }
+
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        // M-1: Include booking context so we can restore state after 3DS redirect
-    return_url: `${window.location.origin}/book?payment=return`,
+        return_url: `${window.location.origin}/book?payment=return`,
         ...(customerEmail ? { payment_method_data: { billing_details: { email: customerEmail } } } : {}),
       },
       redirect: "if_required",
@@ -1139,11 +1146,25 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
 
 // ── DOB Picker ────────────────────────────────────────────────────────────────
 
-function DOBPicker({ value, onChange, hasError }: { value: string; onChange: (v: string) => void; hasError?: boolean }) {
+function DOBPicker({ value, onChange, hasError, paxType }: { value: string; onChange: (v: string) => void; hasError?: boolean; paxType?: "ADULT" | "CHILD" | "INFANT" }) {
   const [open, setOpen] = React.useState(false);
   const selected = value ? new Date(value) : undefined;
 
   const displayValue = selected && isValid(selected) ? format(selected, "dd MMM yyyy") : "";
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const minDob = (() => {
+    if (paxType === "INFANT") { const d = new Date(today); d.setFullYear(d.getFullYear() - 2); d.setDate(d.getDate() + 1); return d; }
+    if (paxType === "CHILD")  { const d = new Date(today); d.setFullYear(d.getFullYear() - 12); d.setDate(d.getDate() + 1); return d; }
+    return new Date(1900, 0, 1);
+  })();
+  const maxDob = (() => {
+    if (paxType === "INFANT") return today;
+    if (paxType === "CHILD")  { const d = new Date(today); d.setFullYear(d.getFullYear() - 2); return d; }
+    const d = new Date(today); d.setFullYear(d.getFullYear() - 12); return d;
+  })();
+
+  const defaultMonth = selected ?? (paxType === "INFANT" ? new Date(today.getFullYear(), today.getMonth() - 6, 1) : paxType === "CHILD" ? new Date(today.getFullYear() - 6, 0, 1) : new Date(1990, 0, 1));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -1167,8 +1188,8 @@ function DOBPicker({ value, onChange, hasError }: { value: string; onChange: (v:
           onSelect={(d) => {
             if (d) { onChange(format(d, "yyyy-MM-dd")); setOpen(false); }
           }}
-          defaultMonth={selected ?? new Date(1990, 0, 1)}
-          disabled={(d) => d > new Date()}
+          defaultMonth={defaultMonth}
+          disabled={(d) => d > maxDob || d < minDob}
           initialFocus
         />
       </PopoverContent>
@@ -1405,6 +1426,18 @@ export default function BookPage() {
     staleTime: 60 * 60_000,
   });
 
+  // Sync nationalityCode from nationalityId when nationalities load (draft may have id but empty code)
+  useEffect(() => {
+    if (!nationalities.length) return;
+    const passengers = getValues("passengers");
+    passengers.forEach((p, i) => {
+      if (p.nationalityId && !p.nationalityCode) {
+        const nat = nationalities.find((n) => n.id === p.nationalityId);
+        if (nat) setValue(`passengers.${i}.nationalityCode`, nat.code);
+      }
+    });
+  }, [nationalities]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fixed-wing: route graph to constrain valid origin→destination pairs
   const { data: fwRoutes = [] } = useQuery({
     queryKey: ["public-routes-fw"],
@@ -1558,12 +1591,26 @@ export default function BookPage() {
   }
 
   // Seat selection
-  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
-  const toggleSeat = (id: string) => {
-    setSelectedSeatIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= passengerCount) return prev; // cap at seats needed
-      return [...prev, id];
+  // seatAssignments: paxIndex → seatId
+  const [seatAssignments, setSeatAssignments] = useState<Record<number, string>>({});
+  const [activePaxIdx, setActivePaxIdx] = useState<number>(0);
+  // Derived flat list kept in-order for API (paxIndex order)
+  const selectedSeatIds = Object.keys(seatAssignments)
+    .map(Number).sort((a, b) => a - b)
+    .map((k) => seatAssignments[k]);
+  const assignSeat = (seatId: string) => {
+    setSeatAssignments((prev) => {
+      // If this seat is already assigned to someone, unassign first
+      const existing = Object.entries(prev).find(([, v]) => v === seatId);
+      const next = { ...prev };
+      if (existing) delete next[Number(existing[0])];
+      // If clicking already-assigned seat for active pax → unassign
+      if (prev[activePaxIdx] === seatId) { delete next[activePaxIdx]; return next; }
+      next[activePaxIdx] = seatId;
+      // Auto-advance to next unassigned pax
+      const nextUnassigned = Array.from({ length: passengerCount }, (_, i) => i).find((i) => i !== activePaxIdx && !next[i]);
+      if (nextUnassigned !== undefined) setActivePaxIdx(nextUnassigned);
+      return next;
     });
   };
 
@@ -1972,7 +2019,7 @@ export default function BookPage() {
                           availDates={fwAvailDates}
                           priceByDate={fwPriceByDate}
                           selectedDate={fwDate}
-                          onSelect={(d) => { setFwDate(d); setFwFlight(null); setSelectedSeatIds([]); setSearchErr(null); setHasSearched(false); }}
+                          onSelect={(d) => { setFwDate(d); setFwFlight(null); setSeatAssignments({}); setActivePaxIdx(0); setSearchErr(null); setHasSearched(false); }}
                           returnAvailDates={fwReturnAvailDates}
                           returnPriceByDate={fwReturnPriceByDate}
                           returnDate={fwReturnDate}
@@ -1992,8 +2039,8 @@ export default function BookPage() {
                           const today = new Date(); today.setHours(0,0,0,0);
                           if (prev < today) return;
                           const iso = format(prev, "yyyy-MM-dd");
-                          if (bookingKind === "fixed_wing") { setFwDate(iso); setFwFlight(null); setSelectedSeatIds([]); }
-                          else                              { setHelDate(iso); setSelectedSlot(null); setSelectedSeatIds([]); }
+                          if (bookingKind === "fixed_wing") { setFwDate(iso); setFwFlight(null); setSeatAssignments({}); setActivePaxIdx(0); }
+                          else                              { setHelDate(iso); setSelectedSlot(null); setSeatAssignments({}); setActivePaxIdx(0); }
                         }}
                         disabled={!(bookingKind === "fixed_wing" ? fwDate : helDate)}
                         className="h-[42px] w-9 rounded-[8px] border-2 border-neutral-200 bg-white text-neutral-500 hover:border-[#8cc63f]/50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors">
@@ -2019,7 +2066,7 @@ export default function BookPage() {
                               selectedDate={fwDate}
                               onSelect={(d) => {
                                 setSearchErr(null); setHasSearched(false);
-                                setFwDate(d); setFwFlight(null); setSelectedSeatIds([]);
+                                setFwDate(d); setFwFlight(null); setSeatAssignments({}); setActivePaxIdx(0);
                               }}
                             />
                           ) : (
@@ -2030,7 +2077,7 @@ export default function BookPage() {
                                 if (!d || !isValid(d)) return;
                                 const iso = format(d, "yyyy-MM-dd");
                                 setSearchErr(null); setHasSearched(false);
-                                setHelDate(iso); setSelectedSlot(null); setSelectedSeatIds([]);
+                                setHelDate(iso); setSelectedSlot(null); setSeatAssignments({}); setActivePaxIdx(0);
                               }}
                               disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
                             />
@@ -2044,8 +2091,8 @@ export default function BookPage() {
                           const next = new Date(cur);
                           next.setDate(next.getDate() + 1);
                           const iso = format(next, "yyyy-MM-dd");
-                          if (bookingKind === "fixed_wing") { setFwDate(iso); setFwFlight(null); setSelectedSeatIds([]); }
-                          else                              { setHelDate(iso); setSelectedSlot(null); setSelectedSeatIds([]); }
+                          if (bookingKind === "fixed_wing") { setFwDate(iso); setFwFlight(null); setSeatAssignments({}); setActivePaxIdx(0); }
+                          else                              { setHelDate(iso); setSelectedSlot(null); setSeatAssignments({}); setActivePaxIdx(0); }
                         }}
                         disabled={!(bookingKind === "fixed_wing" ? fwDate : helDate)}
                         className="h-[42px] w-9 rounded-[8px] border-2 border-neutral-200 bg-white text-neutral-500 hover:border-[#8cc63f]/50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors">
@@ -2077,7 +2124,7 @@ export default function BookPage() {
                     onClick={() => {
                       setFwOrigin(""); setFwDest(""); setFwDate(""); setFwReturnDate("");
                       setFwFlight(null); setSelectedProduct(null); setHelDate("");
-                      setSelectedSlot(null); setSelectedSeatIds([]); setSearchErr(null); setHasSearched(false);
+                      setSelectedSlot(null); setSeatAssignments({}); setActivePaxIdx(0); setSearchErr(null); setHasSearched(false);
                       setPaxCounts({ adults: 1, children: 0, infants: 0 });
                       replace([emptyPassenger(true)]);
                       try { sessionStorage.removeItem(FORM_DRAFT_KEY); sessionStorage.removeItem(FLIGHT_DRAFT_KEY); } catch { /* ignore */ }
@@ -2129,7 +2176,7 @@ export default function BookPage() {
                   <div className="space-y-2">
                     {helDaySlots.map(sl => (
                       <SlotCard key={sl.id} slot={sl} isSelected={selectedSlot?.id === sl.id}
-                        requiredSeats={passengerCount} onClick={() => { setSelectedSlot(selectedSlot?.id === sl.id ? null : sl); setSelectedSeatIds([]); }} />
+                        requiredSeats={passengerCount} onClick={() => { setSelectedSlot(selectedSlot?.id === sl.id ? null : sl); setSeatAssignments({}); setActivePaxIdx(0); }} />
                     ))}
                   </div>
                 )}
@@ -2172,7 +2219,7 @@ export default function BookPage() {
                     )}
                     {fwFlights.map(f => (
                       <FlightCard key={f.id} flight={f} isSelected={fwFlight?.id === f.id}
-                        requiredSeats={passengerCount} onClick={() => { setFwFlight(fwFlight?.id === f.id ? null : f); setSelectedSeatIds([]); }} />
+                        requiredSeats={passengerCount} onClick={() => { setFwFlight(fwFlight?.id === f.id ? null : f); setSeatAssignments({}); setActivePaxIdx(0); }} />
                     ))}
                   </div>
                 )}
@@ -2316,7 +2363,8 @@ export default function BookPage() {
                   // shows correctly in the form (e.g. a 23-month-old flying in 2 months is a CHILD).
                   const departure = fwFlight?.scheduledDeparture ?? selectedSlot?.scheduledDeparture;
                   const refDate   = departure ? new Date(departure) : new Date();
-                  const paxType: PaxType = dobStr && !isNaN(dobDate.getTime()) ? getPassengerTypeFromDob(dobDate, refDate) : "ADULT";
+                  const intendedType: PaxType = i < paxCounts.adults ? "ADULT" : i < paxCounts.adults + paxCounts.children ? "CHILD" : "INFANT";
+                  const paxType: PaxType = dobStr && !isNaN(dobDate.getTime()) ? getPassengerTypeFromDob(dobDate, refDate) : intendedType;
                   const isPk      = getValues(`passengers.${i}.nationalityCode`) === "PK";
                   const isMinor   = paxType === "CHILD" || paxType === "INFANT";
                   const titleOpts: PaxTitle[] = (paxType === "ADULT")
@@ -2434,7 +2482,7 @@ export default function BookPage() {
                             control={control}
                             render={({ field, fieldState }) => (
                               <>
-                                <DOBPicker value={field.value} onChange={field.onChange} hasError={!!fieldState.error} />
+                                <DOBPicker value={field.value} onChange={field.onChange} hasError={!!fieldState.error} paxType={intendedType} />
                                 {fieldState.error && (
                                   <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1.5 font-medium">
                                     <AlertCircle className="size-3 shrink-0" /> {fieldState.error.message}
@@ -2708,7 +2756,39 @@ export default function BookPage() {
 
             {seatMap && seatMap.seats.length > 0 ? (
               <div className="bg-white rounded-[10px] border border-neutral-100 p-5">
-                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-4">Select Your Seat</p>
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Select Your Seat</p>
+
+                {/* Passenger switcher */}
+                <div className="flex flex-wrap gap-2 mb-5 pb-4 border-b border-neutral-100">
+                  {Array.from({ length: passengerCount }, (_, i) => {
+                    const pax = formDataPassengers?.[i];
+                    const name = pax?.firstName ? `${pax.firstName} ${pax.lastName ?? ""}`.trim() : `Passenger ${i + 1}`;
+                    const assignedSeatId = seatAssignments[i];
+                    const seatNum = assignedSeatId ? seatMap.seats.find((s) => s.id === assignedSeatId)?.seatNumber : null;
+                    const isActive = activePaxIdx === i;
+                    return (
+                      <button key={i} type="button" onClick={() => setActivePaxIdx(i)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-[8px] border text-sm font-medium transition-all",
+                          isActive
+                            ? "border-[#8cc63f] bg-[#f0f9e8] text-[#5a8a20]"
+                            : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300",
+                        )}>
+                        <div className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                          style={{ background: isActive ? BRAND : CHARCOAL }}>{i + 1}</div>
+                        <span className="max-w-[100px] truncate">{name}</span>
+                        {seatNum
+                          ? <span className="ml-1 text-xs font-bold text-[#8cc63f]">· {seatNum}</span>
+                          : <span className="ml-1 text-[10px] text-neutral-400">· unassigned</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-neutral-500 mb-4">
+                  Selecting seat for: <span className="font-semibold text-neutral-700">
+                    {(() => { const p = formDataPassengers?.[activePaxIdx]; return p?.firstName ? `${p.firstName} ${p.lastName ?? ""}`.trim() : `Passenger ${activePaxIdx + 1}`; })()}
+                  </span>
+                </p>
 
                 {seatMap.lopaImageUrl ? (
                   <div className="flex flex-col sm:flex-row gap-5 items-start">
@@ -2718,23 +2798,27 @@ export default function BookPage() {
                         className="w-full rounded-lg border border-neutral-200 shadow-sm" draggable={false} />
                       {seatMap.seats.map((seat) => {
                         if (seat.seatX == null || seat.seatY == null) return null;
-                        const isSel = selectedSeatIds.includes(seat.id);
+                        const assignedTo = Object.entries(seatAssignments).find(([, v]) => v === seat.id);
+                        const paxIdx = assignedTo ? Number(assignedTo[0]) : null;
+                        const isActiveAssigned = paxIdx === activePaxIdx;
                         return (
                           <div key={seat.id} className="absolute -translate-x-1/2 -translate-y-1/2"
                             style={{ left: `${seat.seatX}%`, top: `${seat.seatY}%` }}>
                             <button type="button" disabled={seat.isTaken}
-                              onClick={() => toggleSeat(seat.id)}
-                              title={seat.seatNumber}
+                              onClick={() => assignSeat(seat.id)}
+                              title={`${seat.seatNumber}${paxIdx !== null ? ` — Pax ${paxIdx + 1}` : ""}`}
                               className={cn(
                                 "flex items-center justify-center text-[10px] font-bold border-2 rounded-full w-7 h-7",
                                 "transition-all duration-150 focus:outline-none shadow-sm hover:scale-110",
                                 seat.isTaken
                                   ? "bg-neutral-300 border-neutral-400 text-neutral-500 cursor-not-allowed"
-                                  : isSel
+                                  : isActiveAssigned
                                     ? "bg-[#8cc63f] border-[#5a8a20] text-white ring-2 ring-[#8cc63f]/40 scale-110"
-                                    : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] cursor-pointer",
+                                    : paxIdx !== null
+                                      ? "bg-[#3a3a3a] border-[#222] text-white"
+                                      : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] cursor-pointer",
                               )}>
-                              {seat.seatNumber}
+                              {paxIdx !== null ? paxIdx + 1 : seat.seatNumber}
                             </button>
                           </div>
                         );
@@ -2744,24 +2828,29 @@ export default function BookPage() {
                       <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Seats</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {[...seatMap.seats].sort((a, b) => a.seatNumber.localeCompare(b.seatNumber)).map((seat) => {
-                          const isSel = selectedSeatIds.includes(seat.id);
+                          const assignedTo = Object.entries(seatAssignments).find(([, v]) => v === seat.id);
+                          const paxIdx = assignedTo ? Number(assignedTo[0]) : null;
+                          const isActiveAssigned = paxIdx === activePaxIdx;
                           return (
                             <button key={seat.id} type="button" disabled={seat.isTaken}
-                              onClick={() => toggleSeat(seat.id)}
+                              onClick={() => assignSeat(seat.id)}
                               className={cn(
                                 "flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs font-medium transition-all",
                                 seat.isTaken
                                   ? "bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed"
-                                  : isSel
+                                  : isActiveAssigned
                                     ? "bg-[#f0f9e8] border-[#8cc63f] text-[#5a8a20]"
-                                    : "bg-white border-neutral-200 text-neutral-600 hover:border-[#8cc63f] hover:bg-[#f0f9e8]/50 cursor-pointer",
+                                    : paxIdx !== null
+                                      ? "bg-neutral-800 border-neutral-700 text-white"
+                                      : "bg-white border-neutral-200 text-neutral-600 hover:border-[#8cc63f] hover:bg-[#f0f9e8]/50 cursor-pointer",
                               )}>
                               <div className={cn("size-2 rounded-full shrink-0",
-                                seat.isTaken ? "bg-neutral-400" : isSel ? "bg-[#8cc63f]" : "bg-neutral-300")} />
+                                seat.isTaken ? "bg-neutral-400" : isActiveAssigned ? "bg-[#8cc63f]" : paxIdx !== null ? "bg-white" : "bg-neutral-300")} />
                               {seat.seatNumber}
-                              {(seat.isTaken || isSel) && (
-                                <span className="ml-auto text-[10px] opacity-60">{seat.isTaken ? "Taken" : "✓"}</span>
+                              {paxIdx !== null && (
+                                <span className="ml-auto text-[10px] font-bold opacity-80">P{paxIdx + 1}</span>
                               )}
+                              {seat.isTaken && <span className="ml-auto text-[10px] opacity-60">Taken</span>}
                             </button>
                           );
                         })}
@@ -2773,7 +2862,13 @@ export default function BookPage() {
                       </div>
                       {selectedSeatIds.length > 0 && (
                         <p className="text-xs font-semibold text-[#8cc63f]">
-                          {selectedSeatIds.length} of {passengerCount} seat{passengerCount > 1 ? "s" : ""} selected: {selectedSeatIds.map((id) => seatMap.seats.find((s) => s.id === id)?.seatNumber).filter(Boolean).join(", ")}
+                          {selectedSeatIds.length} of {passengerCount} assigned:{" "}
+                          {Object.entries(seatAssignments).sort(([a],[b])=>Number(a)-Number(b)).map(([pi, sid]) => {
+                            const sn = seatMap.seats.find((s) => s.id === sid)?.seatNumber;
+                            const pax = formDataPassengers?.[Number(pi)];
+                            const name = pax?.firstName || `P${Number(pi)+1}`;
+                            return `${name} → ${sn}`;
+                          }).join(", ")}
                         </p>
                       )}
                     </div>
@@ -2785,20 +2880,25 @@ export default function BookPage() {
                         <div key={row} className="flex items-center gap-1.5">
                           <span className="text-[10px] text-neutral-300 w-4 text-right">{row}</span>
                           {seatMap.seats.filter(s => s.row === row).sort((a, b) => a.column.localeCompare(b.column)).map(seat => {
-                            const isSel = selectedSeatIds.includes(seat.id);
+                            const assignedTo = Object.entries(seatAssignments).find(([, v]) => v === seat.id);
+                            const paxIdx = assignedTo ? Number(assignedTo[0]) : null;
+                            const isActiveAssigned = paxIdx === activePaxIdx;
                             return (
                               <button key={seat.id} type="button" disabled={seat.isTaken}
-                                onClick={() => toggleSeat(seat.id)}
+                                onClick={() => assignSeat(seat.id)}
+                                title={paxIdx !== null ? `Passenger ${paxIdx + 1}` : seat.seatNumber}
                                 className={cn(
                                   "flex items-center justify-center text-[10px] font-bold border-2 rounded-full w-7 h-7",
                                   "transition-all duration-150 shadow-sm",
                                   seat.isTaken
                                     ? "bg-neutral-300 border-neutral-400 text-neutral-500 cursor-not-allowed"
-                                    : isSel
+                                    : isActiveAssigned
                                       ? "bg-[#8cc63f] border-[#5a8a20] text-white ring-2 ring-[#8cc63f]/40"
-                                      : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] hover:scale-110 cursor-pointer",
+                                      : paxIdx !== null
+                                        ? "bg-[#3a3a3a] border-[#222] text-white"
+                                        : "bg-white border-neutral-300 text-neutral-600 hover:border-[#8cc63f] hover:scale-110 cursor-pointer",
                                 )}>
-                                {seat.seatNumber}
+                                {paxIdx !== null ? paxIdx + 1 : seat.seatNumber}
                               </button>
                             );
                           })}
