@@ -35,11 +35,11 @@ const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const BRAND    = "#8cc63f";
+const BRAND = "#8cc63f";
 const CHARCOAL = "#3a3a3a";
 
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAY_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -64,12 +64,12 @@ function addMonths(y: number, m: number, delta: number): [number, number] {
 type Step = "search" | "passengers" | "addons" | "seats" | "confirm" | "payment";
 
 const STEPS: { key: Step; label: string }[] = [
-  { key: "search",     label: "Select Flight" },
-  { key: "passengers", label: "Passengers"    },
-  { key: "addons",     label: "Add-ons"       },
-  { key: "seats",      label: "Seats"         },
-  { key: "confirm",    label: "Review"        },
-  { key: "payment",    label: "Payment"       },
+  { key: "search", label: "Select Flight" },
+  { key: "passengers", label: "Passengers" },
+  { key: "addons", label: "Add-ons" },
+  { key: "seats", label: "Seats" },
+  { key: "confirm", label: "Review" },
+  { key: "payment", label: "Payment" },
 ];
 
 function StepBar({ current }: { current: Step }) {
@@ -77,14 +77,14 @@ function StepBar({ current }: { current: Step }) {
   return (
     <div className="flex items-center gap-0 mb-8">
       {STEPS.map((s, i) => {
-        const done   = i < ci;
+        const done = i < ci;
         const active = i === ci;
         return (
           <React.Fragment key={s.key}>
             <div className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-              done   ? "text-white"       : "",
-              active ? "text-white"       : "",
+              done ? "text-white" : "",
+              active ? "text-white" : "",
               !done && !active ? "text-neutral-400 bg-neutral-100" : "",
             )} style={done || active ? { background: done ? BRAND : CHARCOAL } : {}}>
               {done
@@ -124,7 +124,7 @@ function HoldCountdown({ expiresAt, onExpired }: { expiresAt: string; onExpired?
     <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-[8px] border", isLow ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200")}>
       <Clock className={cn("size-4", isLow ? "text-red-500" : "text-amber-600")} />
       <span className={cn("text-xs font-semibold tabular-nums", isLow ? "text-red-600" : "text-amber-700")}>
-        {String(m).padStart(2,"0")}:{String(s).padStart(2,"0")} seat hold
+        {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")} seat hold
       </span>
     </div>
   );
@@ -135,15 +135,15 @@ function HoldCountdown({ expiresAt, onExpired }: { expiresAt: string; onExpired?
 function StripePaymentForm({
   amountUsd, holdExpiresAt, onSuccess, onHoldExpired, customerEmail,
 }: {
-  amountUsd:     number;
+  amountUsd: number;
   holdExpiresAt: string;
-  onSuccess:     () => void;
+  onSuccess: () => void;
   onHoldExpired: () => void;
   customerEmail?: string;
 }) {
-  const stripe   = useStripe();
+  const stripe = useStripe();
   const elements = useElements();
-  const [loading,  setLoading]  = useState(false);
+  const [loading, setLoading] = useState(false);
   const [payError, setPayError] = useState("");
 
   async function handlePay(e: React.FormEvent) {
@@ -201,9 +201,9 @@ function StripePaymentForm({
         </div>
         <PaymentElement
           options={{
-            layout:             "accordion",
+            layout: "accordion",
             paymentMethodOrder: ["card"],
-            wallets:            { applePay: "never", googlePay: "never" },
+            wallets: { applePay: "never", googlePay: "never" },
             ...(customerEmail ? { fields: { billingDetails: { email: "never" } }, defaultValues: { billingDetails: { email: customerEmail } } } : {}),
           }}
         />
@@ -239,8 +239,8 @@ function Combobox({
   buttonClassName?: string;
   buttonStyle?: React.CSSProperties;
 }) {
-  const [open,   setOpen]   = useState(false);
-  const [query,  setQuery]  = useState("");
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -270,8 +270,8 @@ function Combobox({
           padStart ? "pl-5 pr-3" : "px-3",
           disabled ? "border-neutral-200 text-neutral-400 cursor-not-allowed opacity-50"
             : open ? "border-[#8cc63f] text-neutral-800"
-            : value ? "border-neutral-200 text-neutral-800 hover:border-[#8cc63f]/50"
-            : "border-neutral-200 text-neutral-400 hover:border-[#8cc63f]/50",
+              : value ? "border-neutral-200 text-neutral-800 hover:border-[#8cc63f]/50"
+                : "border-neutral-200 text-neutral-400 hover:border-[#8cc63f]/50",
           buttonClassName,
         )}>
         <span className={cn("font-medium truncate", !value && "font-normal")}>{value || placeholder || "Select…"}</span>
@@ -321,10 +321,10 @@ function NationalityCombobox({
   onChange: (id: number, code: string) => void;
   hasError?: boolean;
 }) {
-  const [open,        setOpen]        = useState(false);
-  const [query,       setQuery]       = useState("");
-  const [activeIdx,   setActiveIdx]   = useState(-1);
-  const ref     = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -379,9 +379,9 @@ function NationalityCombobox({
         onClick={() => { setOpen((o) => !o); setActiveIdx(-1); }}
         className={cn(
           "w-full flex items-center justify-between gap-2 text-sm rounded-[8px] border-2 px-3 py-[9px] bg-white transition-all",
-          hasError  ? "border-red-300 bg-red-50/30"
+          hasError ? "border-red-300 bg-red-50/30"
             : open ? "border-[#8cc63f]"
-            : "border-neutral-200 hover:border-[#8cc63f]/50",
+              : "border-neutral-200 hover:border-[#8cc63f]/50",
         )}>
         <span className={cn("truncate text-sm", selected ? "text-neutral-800 font-medium" : "text-neutral-400 font-normal")}>
           {selected ? `${selected.flag ?? ""} ${selected.name}`.trim() : "Select nationality…"}
@@ -412,8 +412,8 @@ function NationalityCombobox({
                 className={cn(
                   "w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2",
                   activeIdx === idx ? "bg-[#8cc63f]/10 text-[#8cc63f]" :
-                  value === n.id   ? "bg-[#f0f9e8] text-[#8cc63f] font-medium" :
-                  "text-neutral-700 hover:bg-neutral-50",
+                    value === n.id ? "bg-[#f0f9e8] text-[#8cc63f] font-medium" :
+                      "text-neutral-700 hover:bg-neutral-50",
                 )}>
                 <span>{n.flag ? `${n.flag} ` : ""}{n.name}</span>
                 {value === n.id && <Check className="size-3.5 shrink-0" />}
@@ -441,7 +441,7 @@ function AirportCombobox({
   hideChevron?: boolean;
   buttonClassName?: string;
 }) {
-  const [open,  setOpen]  = useState(false);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
@@ -466,7 +466,7 @@ function AirportCombobox({
   }, [groups, query, allowedAirportNames]);
 
   let selectedAirportName = "";
-  let selectedCityName    = "";
+  let selectedCityName = "";
   for (const g of groups) {
     const match = g.airports.find((a) => a.name === value);
     if (match) { selectedAirportName = match.name; selectedCityName = g.cityName; break; }
@@ -487,14 +487,14 @@ function AirportCombobox({
           padStart ? "pl-5 pr-3" : "px-3",
           disabled ? "border-neutral-200 text-neutral-400 cursor-not-allowed opacity-50"
             : open ? "border-[#8cc63f] text-neutral-800"
-            : value ? "border-neutral-200 text-neutral-800 hover:border-[#8cc63f]/50"
-            : "border-neutral-200 text-neutral-400 hover:border-[#8cc63f]/50",
+              : value ? "border-neutral-200 text-neutral-800 hover:border-[#8cc63f]/50"
+                : "border-neutral-200 text-neutral-400 hover:border-[#8cc63f]/50",
           buttonClassName,
         )}>
         <span className={cn("font-medium truncate text-left flex items-baseline gap-1", !value && "font-normal")}>
-          {selectedCityName ? (
+          {selectedAirportName ? (
             <>
-              <span className="truncate">{selectedCityName}</span>
+              <span className="truncate">{selectedAirportName}</span>
               <span className="text-[10px] text-neutral-400 font-mono shrink-0">{groups.flatMap((g) => g.airports).find((a) => a.name === selectedAirportName)?.code}</span>
             </>
           ) : (placeholder || "Select…")}
@@ -550,9 +550,9 @@ function AirportCombobox({
 function MiniDropdown<T extends string>({
   icon, value, options, onChange, disabled,
 }: {
-  icon?:    React.ReactNode;
-  value:    string;
-  options:  { value: T; label: string }[];
+  icon?: React.ReactNode;
+  value: string;
+  options: { value: T; label: string }[];
   onChange: (v: T) => void;
   disabled?: boolean;
 }) {
@@ -601,9 +601,9 @@ function MiniDropdown<T extends string>({
 function PaxDropdown({
   value, onChange, max = 9,
 }: {
-  value:    { adults: number; children: number; infants: number };
+  value: { adults: number; children: number; infants: number };
   onChange: (v: { adults: number; children: number; infants: number }) => void;
-  max?:     number;
+  max?: number;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -615,9 +615,9 @@ function PaxDropdown({
   const total = value.adults + value.children + value.infants;
 
   const rows: { key: keyof typeof value; label: string; sub: string; min: number }[] = [
-    { key: "adults",   label: "Adults",   sub: "Age 12+",  min: 1 },
+    { key: "adults", label: "Adults", sub: "Age 12+", min: 1 },
     { key: "children", label: "Children", sub: "Age 2-12", min: 0 },
-    { key: "infants",  label: "Infants",  sub: "Under 2",  min: 0 },
+    { key: "infants", label: "Infants", sub: "Under 2", min: 0 },
   ];
 
   return (
@@ -674,14 +674,14 @@ function HelCalendar({
   selectedDate: string;
   onSelect: (d: string) => void;
 }) {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const [vy, setVy] = useState(today.getFullYear());
   const [vm, setVm] = useState(today.getMonth());
-  const [ny, nm]    = useMemo(() => addMonths(vy, vm, 1), [vy, vm]);
-  const isNow       = vy === today.getFullYear() && vm === today.getMonth();
+  const [ny, nm] = useMemo(() => addMonths(vy, vm, 1), [vy, vm]);
+  const isNow = vy === today.getFullYear() && vm === today.getMonth();
 
   function renderMonth(year: number, month: number) {
-    const days  = new Date(year, month + 1, 0).getDate();
+    const days = new Date(year, month + 1, 0).getDate();
     const start = new Date(year, month, 1).getDay();
     return (
       <div className="flex-1 min-w-[240px]">
@@ -696,14 +696,14 @@ function HelCalendar({
         <div className="grid grid-cols-7">
           {Array.from({ length: start }).map((_, i) => <div key={`e${i}`} className="h-14 border-b border-neutral-50" />)}
           {Array.from({ length: days }).map((_, i) => {
-            const day     = i + 1;
-            const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-            const dt      = new Date(year, month, day);
-            const isPast  = dt < today;
-            const daySlots= slotsByDate[dateStr] ?? [];
-            const has     = !isPast && daySlots.length > 0;
-            const isSel   = selectedDate === dateStr;
-            const seats    = daySlots.reduce((s, sl) => s + sl.availableSeats, 0);
+            const day = i + 1;
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dt = new Date(year, month, day);
+            const isPast = dt < today;
+            const daySlots = slotsByDate[dateStr] ?? [];
+            const has = !isPast && daySlots.length > 0;
+            const isSel = selectedDate === dateStr;
+            const seats = daySlots.reduce((s, sl) => s + sl.availableSeats, 0);
             const minPrice = daySlots.reduce((min, sl) =>
               sl.pricePerSeat != null && (min === null || sl.pricePerSeat < min) ? sl.pricePerSeat : min, null as number | null);
             return (
@@ -712,9 +712,9 @@ function HelCalendar({
                 onClick={() => has && onSelect(dateStr)}
                 className={cn(
                   "h-[72px] flex flex-col items-center justify-center gap-0.5 border-b border-neutral-50 transition-all",
-                  isPast   ? "opacity-25 cursor-not-allowed" : "",
+                  isPast ? "opacity-25 cursor-not-allowed" : "",
                   !has && !isPast ? "cursor-default" : "",
-                  isSel    ? "cursor-pointer" : has ? "hover:opacity-80 cursor-pointer" : "",
+                  isSel ? "cursor-pointer" : has ? "hover:opacity-80 cursor-pointer" : "",
                 )}
                 style={isSel ? { background: BRAND } : has ? { background: "#f0f9e8" } : {}}
               >
@@ -745,12 +745,12 @@ function HelCalendar({
   return (
     <div className="bg-white border border-neutral-100 rounded-[10px] overflow-hidden shadow-sm">
       <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-100">
-        <button type="button" onClick={() => { const [y,m] = addMonths(vy,vm,-1); setVy(y); setVm(m); }}
+        <button type="button" onClick={() => { const [y, m] = addMonths(vy, vm, -1); setVy(y); setVm(m); }}
           disabled={isNow} className="p-1.5 rounded-[6px] hover:bg-neutral-200 disabled:opacity-30 transition-colors">
           <ChevronLeft className="size-4 text-neutral-600" />
         </button>
         <span className="text-xs text-neutral-400 font-medium">{MONTH_NAMES[vm]} {vy} – {MONTH_NAMES[nm]} {ny}</span>
-        <button type="button" onClick={() => { const [y,m] = addMonths(vy,vm,1); setVy(y); setVm(m); }}
+        <button type="button" onClick={() => { const [y, m] = addMonths(vy, vm, 1); setVy(y); setVm(m); }}
           className="p-1.5 rounded-[6px] hover:bg-neutral-200 transition-colors">
           <ChevronRight className="size-4 text-neutral-600" />
         </button>
@@ -781,12 +781,12 @@ function FwCalendar({
   returnDate?: string;
   onReturnSelect?: (d: string) => void;
 }) {
-  const today  = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
-  const minDt  = useMemo(() => { if (!minDate) return today; const d = new Date(minDate); d.setHours(0,0,0,0); return d > today ? d : today; }, [minDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const minDt = useMemo(() => { if (!minDate) return today; const d = new Date(minDate); d.setHours(0, 0, 0, 0); return d > today ? d : today; }, [minDate]); // eslint-disable-line react-hooks/exhaustive-deps
   const [vy, setVy] = useState(today.getFullYear());
   const [vm, setVm] = useState(today.getMonth());
-  const [ny, nm]    = useMemo(() => addMonths(vy, vm, 1), [vy, vm]);
-  const isNow       = vy === today.getFullYear() && vm === today.getMonth();
+  const [ny, nm] = useMemo(() => addMonths(vy, vm, 1), [vy, vm]);
+  const isNow = vy === today.getFullYear() && vm === today.getMonth();
 
   // hover date for range highlight preview
   const [hoverDate, setHoverDate] = useState<string>("");
@@ -808,7 +808,7 @@ function FwCalendar({
     if (!rangeMode) { onSelect(dateStr); return; }
 
     const isOutbound = availDates.has(dateStr);
-    const isReturn   = returnAvailDates?.has(dateStr) ?? false;
+    const isReturn = returnAvailDates?.has(dateStr) ?? false;
 
     if (!depDate || (depDate && retDate)) {
       // No dep set, or both already set → start fresh: only outbound dates can be departure
@@ -832,7 +832,7 @@ function FwCalendar({
   }
 
   function renderMonth(year: number, month: number) {
-    const days  = new Date(year, month + 1, 0).getDate();
+    const days = new Date(year, month + 1, 0).getDate();
     const start = new Date(year, month, 1).getDay();
 
     return (
@@ -848,20 +848,20 @@ function FwCalendar({
         <div className="grid grid-cols-7">
           {Array.from({ length: start }).map((_, i) => <div key={`e${i}`} className="h-12 border-b border-neutral-50" />)}
           {Array.from({ length: days }).map((_, i) => {
-            const day     = i + 1;
-            const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-            const dt      = new Date(year, month, day);
-            const isPast  = dt < minDt;
+            const day = i + 1;
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dt = new Date(year, month, day);
+            const isPast = dt < minDt;
 
             // In range mode: outbound dates selectable as dep; return only if return route has flights
-            const hasOut  = !isPast && availDates.has(dateStr);
-            const hasRet  = rangeMode && !isPast && (returnAvailDates?.has(dateStr) ?? false);
-            const has     = hasOut || hasRet;
+            const hasOut = !isPast && availDates.has(dateStr);
+            const hasRet = rangeMode && !isPast && (returnAvailDates?.has(dateStr) ?? false);
+            const has = hasOut || hasRet;
 
             const isDepSel = dateStr === depDate;
             const isRetSel = rangeMode && dateStr === retDate;
-            const isSel    = isDepSel || isRetSel;
-            const inRange  = isInRange(dateStr);
+            const isSel = isDepSel || isRetSel;
+            const inRange = isInRange(dateStr);
 
             // Price: if it's departure date show outbound price, else return price
             const price = isDepSel
@@ -938,12 +938,12 @@ function FwCalendar({
         </div>
       )}
       <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-100">
-        <button type="button" onClick={() => { const [y,m] = addMonths(vy,vm,-1); setVy(y); setVm(m); }}
+        <button type="button" onClick={() => { const [y, m] = addMonths(vy, vm, -1); setVy(y); setVm(m); }}
           disabled={isNow} className="p-1.5 rounded-[6px] hover:bg-neutral-200 disabled:opacity-30 transition-colors">
           <ChevronLeft className="size-4 text-neutral-600" />
         </button>
         <span className="text-xs text-neutral-400 font-medium">{MONTH_NAMES[vm]} {vy} – {MONTH_NAMES[nm]} {ny}</span>
-        <button type="button" onClick={() => { const [y,m] = addMonths(vy,vm,1); setVy(y); setVm(m); }}
+        <button type="button" onClick={() => { const [y, m] = addMonths(vy, vm, 1); setVy(y); setVm(m); }}
           className="p-1.5 rounded-[6px] hover:bg-neutral-200 transition-colors">
           <ChevronRight className="size-4 text-neutral-600" />
         </button>
@@ -968,7 +968,7 @@ function FwCalendar({
 function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
   flight: PublicFlight; isSelected: boolean; requiredSeats: number; onClick: () => void;
 }) {
-  const dur      = fmtDuration(flight.scheduledDeparture, flight.scheduledArrival);
+  const dur = fmtDuration(flight.scheduledDeparture, flight.scheduledArrival);
   const hasSeats = flight.availableSeats >= requiredSeats;
 
   return (
@@ -1056,8 +1056,8 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
           <span className={cn(
             "text-[9px] mt-2 px-2 py-0.5 rounded-full font-semibold",
             flight.availableSeats > 3 ? "bg-white/20 text-white" :
-            flight.availableSeats > 0 ? "bg-amber-400/30 text-amber-200" :
-            "bg-red-400/30 text-red-200",
+              flight.availableSeats > 0 ? "bg-amber-400/30 text-amber-200" :
+                "bg-red-400/30 text-red-200",
           )}>
             {flight.availableSeats === 0 ? "Full" : `${flight.availableSeats} seats`}
           </span>
@@ -1077,7 +1077,7 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
 function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
   slot: ProductSlot; isSelected: boolean; requiredSeats: number; onClick: () => void;
 }) {
-  const dur      = fmtDuration(slot.scheduledDeparture, slot.scheduledArrival);
+  const dur = fmtDuration(slot.scheduledDeparture, slot.scheduledArrival);
   const hasSeats = slot.availableSeats >= requiredSeats;
   return (
     <button type="button" onClick={onClick} disabled={!hasSeats}
@@ -1125,8 +1125,8 @@ function SlotCard({ slot, isSelected, requiredSeats, onClick }: {
           <span className={cn(
             "text-[10px] px-2 py-0.5 rounded-full font-medium",
             slot.availableSeats > 3 ? "bg-[#f0f9e8] text-[#8cc63f]" :
-            slot.availableSeats > 0 ? "bg-amber-50 text-amber-600" :
-            "bg-red-50 text-red-500",
+              slot.availableSeats > 0 ? "bg-amber-50 text-amber-600" :
+                "bg-red-50 text-red-500",
           )}>
             {slot.availableSeats === 0 ? "Full" : `${slot.availableSeats}/${slot.aircraft.saleableSeats} seats`}
           </span>
@@ -1155,12 +1155,12 @@ function DOBPicker({ value, onChange, hasError, paxType }: { value: string; onCh
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const minDob = (() => {
     if (paxType === "INFANT") { const d = new Date(today); d.setFullYear(d.getFullYear() - 2); d.setDate(d.getDate() + 1); return d; }
-    if (paxType === "CHILD")  { const d = new Date(today); d.setFullYear(d.getFullYear() - 12); d.setDate(d.getDate() + 1); return d; }
+    if (paxType === "CHILD") { const d = new Date(today); d.setFullYear(d.getFullYear() - 12); d.setDate(d.getDate() + 1); return d; }
     return new Date(1900, 0, 1);
   })();
   const maxDob = (() => {
     if (paxType === "INFANT") return today;
-    if (paxType === "CHILD")  { const d = new Date(today); d.setFullYear(d.getFullYear() - 2); return d; }
+    if (paxType === "CHILD") { const d = new Date(today); d.setFullYear(d.getFullYear() - 2); return d; }
     const d = new Date(today); d.setFullYear(d.getFullYear() - 12); return d;
   })();
 
@@ -1200,27 +1200,27 @@ function DOBPicker({ value, onChange, hasError, paxType }: { value: string; onCh
 // ── Passenger form schema ─────────────────────────────────────────────────────
 
 const PASSENGER_TITLES = ["MR", "MRS", "MS", "MASTER", "MISS"] as const;
-type PaxType  = PassengerAgeType; // "ADULT" | "CHILD" | "INFANT" — derived from dateOfBirth, never chosen directly
+type PaxType = PassengerAgeType; // "ADULT" | "CHILD" | "INFANT" — derived from dateOfBirth, never chosen directly
 type PaxTitle = typeof PASSENGER_TITLES[number];
 
 const passengerSchema = z.object({
-  firstName:       z.string().min(1, "First name is required"),
-  lastName:        z.string().min(1, "Last name is required"),
-  title:           z.enum(PASSENGER_TITLES).optional().nullable(),
-  cnicOrPassport:  z.string().default(""),
-  guardianCnic:    z.string().default(""),
-  dateOfBirth:     z.string().min(1, "Date of birth is required").refine((v) => {
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  title: z.enum(PASSENGER_TITLES).optional().nullable(),
+  cnicOrPassport: z.string().default(""),
+  guardianCnic: z.string().default(""),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine((v) => {
     const d = new Date(v); return !isNaN(d.getTime()) && d < new Date();
   }, "Enter a valid past date"),
-  nationalityId:   z.number().int().positive("Nationality is required"),
+  nationalityId: z.number().int().positive("Nationality is required"),
   nationalityCode: z.string().length(2),
-  contactEmail:    z.string().default(""),
-  contactPhone:    z.string().default(""),
+  contactEmail: z.string().default(""),
+  contactPhone: z.string().default(""),
   isLeadPassenger: z.boolean(),
 }).superRefine((p, ctx) => {
-  const isPk   = p.nationalityCode === "PK";
-  const dob    = new Date(p.dateOfBirth);
-  const type   = isNaN(dob.getTime()) ? "ADULT" : getPassengerTypeFromDob(dob);
+  const isPk = p.nationalityCode === "PK";
+  const dob = new Date(p.dateOfBirth);
+  const type = isNaN(dob.getTime()) ? "ADULT" : getPassengerTypeFromDob(dob);
   const isMinor = type === "CHILD" || type === "INFANT";
 
   if (isPk && isMinor) {
@@ -1234,14 +1234,20 @@ const passengerSchema = z.object({
   } else {
     const doc = (p.cnicOrPassport ?? "").trim();
     if (!doc) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
-        message: isPk ? "CNIC is required" : "Passport number is required" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
+        message: isPk ? "CNIC is required" : "Passport number is required"
+      });
     } else if (isPk && !/^\d{5}-\d{7}-\d$/.test(doc)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
-        message: "Enter a valid CNIC (42201-1234567-1)" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
+        message: "Enter a valid CNIC (42201-1234567-1)"
+      });
     } else if (!isPk && !/^[A-Z0-9]{6,20}$/i.test(doc)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
-        message: "Enter a valid passport number" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom, path: ["cnicOrPassport"],
+        message: "Enter a valid passport number"
+      });
     }
   }
   if ((type === "ADULT" || type === "CHILD") && !p.title) {
@@ -1267,7 +1273,7 @@ const passengerSchema = z.object({
     }
   }
 });
-const PK_PHONE_RE   = /^(\+92|0092|0)3[0-9]{9}$/;
+const PK_PHONE_RE = /^(\+92|0092|0)3[0-9]{9}$/;
 const INTL_PHONE_RE = /^\+?[0-9\s\-(). ]{7,20}$/;
 
 const formSchema = z.object({
@@ -1291,11 +1297,11 @@ const formSchema = z.object({
   });
 });
 type BookingForm = z.infer<typeof formSchema>;
-type PaxCounts   = { adults: number; children: number; infants: number };
+type PaxCounts = { adults: number; children: number; infants: number };
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-const FORM_DRAFT_KEY   = "jetrique_book_draft";
+const FORM_DRAFT_KEY = "jetrique_book_draft";
 const FLIGHT_DRAFT_KEY = "jetrique_flight_draft";
 
 export default function BookPage() {
@@ -1315,31 +1321,31 @@ export default function BookPage() {
     });
   }
 
-  const [step,         setStep]         = useState<Step>("search");
-  const [bookingKind,  setBookingKind]  = useState<"helicopter" | "fixed_wing">("helicopter");
-  const [tripType,     setTripType]     = useState<"one_way" | "round_trip">("one_way");
+  const [step, setStep] = useState<Step>("search");
+  const [bookingKind, setBookingKind] = useState<"helicopter" | "fixed_wing">("helicopter");
+  const [tripType, setTripType] = useState<"one_way" | "round_trip">("one_way");
   // flights only show after user explicitly clicks Search
-  const [hasSearched,  setHasSearched]  = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [paxCounts, setPaxCounts] = useState<PaxCounts>({ adults: 1, children: 0, infants: 0 });
   // Every passenger occupies a seat (infants included) — no lap-infant concept anymore.
   const passengerCount = paxCounts.adults + paxCounts.children + paxCounts.infants;
-  const seatCount      = passengerCount;
+  const seatCount = passengerCount;
   const [shareContact, setShareContact] = useState<boolean>(true);
-  const [error,        setError]        = useState<string | null>(null);
-  const [searchErr,    setSearchErr]    = useState<{ origin?: string; dest?: string; date?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searchErr, setSearchErr] = useState<{ origin?: string; dest?: string; date?: string } | null>(null);
 
   // Helicopter state
   const [selectedProduct, setSelectedProduct] = useState<PublicProduct | null>(null);
-  const [helDate,          setHelDate]          = useState("");
-  const [selectedSlot,     setSelectedSlot]     = useState<ProductSlot | null>(null);
+  const [helDate, setHelDate] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<ProductSlot | null>(null);
 
   // Fixed-wing state
-  const [fwOrigin,     setFwOrigin]     = useState("");
-  const [fwDest,       setFwDest]       = useState("");
-  const [fwDate,       setFwDate]       = useState("");
-  const [fwReturnDate,   setFwReturnDate]   = useState("");
+  const [fwOrigin, setFwOrigin] = useState("");
+  const [fwDest, setFwDest] = useState("");
+  const [fwDate, setFwDate] = useState("");
+  const [fwReturnDate, setFwReturnDate] = useState("");
   const [fwReturnFlight, setFwReturnFlight] = useState<PublicFlight | null>(null);
-  const [fwFlight,     setFwFlight]     = useState<PublicFlight | null>(null);
+  const [fwFlight, setFwFlight] = useState<PublicFlight | null>(null);
 
   // Restore flight draft on mount
   useEffect(() => {
@@ -1357,15 +1363,15 @@ export default function BookPage() {
       if (d.bookingKind === "helicopter" || d.bookingKind === "fixed_wing") setBookingKind(d.bookingKind);
       if (d.tripType === "one_way" || d.tripType === "round_trip") setTripType(d.tripType);
       if (d.paxCounts && typeof d.paxCounts.infants === "number") setPaxCounts(d.paxCounts);
-      if (d.fwOrigin)      setFwOrigin(d.fwOrigin);
-      if (d.fwDest)        setFwDest(d.fwDest);
-      if (d.fwDate)        setFwDate(d.fwDate);
-      if (d.fwReturnDate)  setFwReturnDate(d.fwReturnDate);
-      if (d.fwFlight)      setFwFlight(d.fwFlight);
+      if (d.fwOrigin) setFwOrigin(d.fwOrigin);
+      if (d.fwDest) setFwDest(d.fwDest);
+      if (d.fwDate) setFwDate(d.fwDate);
+      if (d.fwReturnDate) setFwReturnDate(d.fwReturnDate);
+      if (d.fwFlight) setFwFlight(d.fwFlight);
       if (d.fwReturnFlight) setFwReturnFlight(d.fwReturnFlight);
       if (d.selectedProduct) setSelectedProduct(d.selectedProduct);
-      if (d.helDate)       setHelDate(d.helDate);
-      if (d.selectedSlot)  setSelectedSlot(d.selectedSlot);
+      if (d.helDate) setHelDate(d.helDate);
+      if (d.selectedSlot) setSelectedSlot(d.selectedSlot);
     } catch { /* ignore */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1389,13 +1395,13 @@ export default function BookPage() {
 
   // OTP modal (shown before payment if not logged in)
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpStep,    setOtpStep]  = useState<"email" | "otp">("email");
-  const [otpEmail,   setOtpEmail] = useState("");
+  const [otpStep, setOtpStep] = useState<"email" | "otp">("email");
+  const [otpEmail, setOtpEmail] = useState("");
   // H-2: Resend OTP cooldown
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [otpName,    setOtpName]  = useState("");
-  const [otpCode,    setOtpCode]  = useState("");
-  const [otpError,   setOtpError] = useState("");
+  const [otpName, setOtpName] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
 
   // After booking created → payment step
   const [pendingBooking, setPendingBooking] = useState<{
@@ -1410,19 +1416,19 @@ export default function BookPage() {
 
   const { data: helProducts = [], isLoading: loadHel } = useQuery({
     queryKey: ["public-hel-products"],
-    queryFn:  () => publicApi.getProducts({ productType: "HELICOPTER" }),
+    queryFn: () => publicApi.getProducts({ productType: "HELICOPTER" }),
   });
 
   // Fixed-wing: airports grouped by city, for the origin/destination combobox
   const { data: airportGroups = [] } = useQuery<CityAirportGroup[]>({
     queryKey: ["public-airports-grouped"],
-    queryFn:  () => publicApi.getAirportsGrouped(),
+    queryFn: () => publicApi.getAirportsGrouped(),
     staleTime: 10 * 60_000,
   });
 
   const { data: nationalities = [] } = useQuery<Nationality[]>({
     queryKey: ["nationalities"],
-    queryFn:  () => publicApi.getNationalities(),
+    queryFn: () => publicApi.getNationalities(),
     staleTime: 60 * 60_000,
   });
 
@@ -1441,14 +1447,14 @@ export default function BookPage() {
   // Fixed-wing: route graph to constrain valid origin→destination pairs
   const { data: fwRoutes = [] } = useQuery({
     queryKey: ["public-routes-fw"],
-    queryFn:  () => publicApi.getRoutes(),
+    queryFn: () => publicApi.getRoutes(),
     staleTime: 10 * 60_000,
   });
 
   const { data: productSlots = [], isLoading: loadSlots } = useQuery({
     queryKey: ["product-slots", selectedProduct?.id],
-    queryFn:  () => publicApi.getProductSlots(selectedProduct!.id),
-    enabled:  !!selectedProduct,
+    queryFn: () => publicApi.getProductSlots(selectedProduct!.id),
+    enabled: !!selectedProduct,
   });
 
   const helSlotsByDate = useMemo(() => {
@@ -1466,8 +1472,8 @@ export default function BookPage() {
   // Fetch all flights for origin+dest; filter by selected date for display
   const { data: fwAllFlights = [], isFetching: fetchingFlights } = useQuery({
     queryKey: ["fw-flights-all", fwOrigin, fwDest],
-    queryFn:  () => publicApi.searchFlights({ origin: fwOrigin, destination: fwDest }),
-    enabled:  !!fwOrigin && !!fwDest && bookingKind === "fixed_wing",
+    queryFn: () => publicApi.searchFlights({ origin: fwOrigin, destination: fwDest }),
+    enabled: !!fwOrigin && !!fwDest && bookingKind === "fixed_wing",
     staleTime: 5 * 60_000,
   });
   const fwFlights = useMemo(
@@ -1479,15 +1485,15 @@ export default function BookPage() {
   // Return-leg flights for selected return date (specific day)
   const { data: fwReturnDayFlights = [], isFetching: fetchingReturn } = useQuery({
     queryKey: ["fw-return-day", fwDest, fwOrigin, fwReturnDate],
-    queryFn:  () => publicApi.searchFlights({ origin: fwDest, destination: fwOrigin, date: fwReturnDate }),
-    enabled:  !!fwDest && !!fwOrigin && !!fwReturnDate && tripType === "round_trip",
+    queryFn: () => publicApi.searchFlights({ origin: fwDest, destination: fwOrigin, date: fwReturnDate }),
+    enabled: !!fwDest && !!fwOrigin && !!fwReturnDate && tripType === "round_trip",
   });
 
   // Return-leg flights (reverse route) — for round-trip calendar
   const { data: fwReturnAllFlights = [] } = useQuery({
     queryKey: ["fw-flights-return", fwDest, fwOrigin],
-    queryFn:  () => publicApi.searchFlights({ origin: fwDest, destination: fwOrigin }),
-    enabled:  !!fwOrigin && !!fwDest && bookingKind === "fixed_wing" && tripType === "round_trip",
+    queryFn: () => publicApi.searchFlights({ origin: fwDest, destination: fwOrigin }),
+    enabled: !!fwOrigin && !!fwDest && bookingKind === "fixed_wing" && tripType === "round_trip",
     staleTime: 5 * 60_000,
   });
   const fwReturnAvailDates = useMemo(() => new Set(fwReturnAllFlights.map((f) => f.scheduledDeparture.slice(0, 10))), [fwReturnAllFlights]);
@@ -1558,7 +1564,7 @@ export default function BookPage() {
 
     const current = getValues("passengers");
     const departure = fwFlight?.scheduledDeparture ?? selectedSlot?.scheduledDeparture;
-    const refDate   = departure ? new Date(departure) : new Date();
+    const refDate = departure ? new Date(departure) : new Date();
     const byType: Record<PaxType, typeof current> = { ADULT: [], CHILD: [], INFANT: [] };
     for (const p of current) {
       const d = new Date(p.dateOfBirth);
@@ -1616,8 +1622,8 @@ export default function BookPage() {
 
   const { data: slotDetail } = useQuery({
     queryKey: ["slot-detail", activeSlotId],
-    queryFn:  () => publicApi.getSlotDetail(activeSlotId!),
-    enabled:  !!activeSlotId,
+    queryFn: () => publicApi.getSlotDetail(activeSlotId!),
+    enabled: !!activeSlotId,
     staleTime: 60_000,
   });
   const seatMap = slotDetail?.seatMap ?? null;
@@ -1626,13 +1632,13 @@ export default function BookPage() {
 
   const requestOtpMut = useMutation({
     mutationFn: () => customerApi.requestOtp(otpEmail, otpName.trim() || undefined),
-    onSuccess:  () => { setOtpStep("otp"); setOtpError(""); },
-    onError:    (e: Error) => setOtpError(e.message),
+    onSuccess: () => { setOtpStep("otp"); setOtpError(""); },
+    onError: (e: Error) => setOtpError(e.message),
   });
 
   const verifyOtpMut = useMutation({
     mutationFn: () => customerApi.verifyOtp(otpEmail, otpCode),
-    onSuccess:  ({ accessToken, customer: c }) => {
+    onSuccess: ({ accessToken, customer: c }) => {
       login(accessToken, c);
       setShowOtpModal(false);
       // Pass fresh token directly — React state hasn't flushed yet
@@ -1681,17 +1687,17 @@ export default function BookPage() {
       const leadEmail = lead?.contactEmail ?? "";
       const leadPhone = lead?.contactPhone ?? "";
       const paxList = formDataPassengers.map((p) => ({
-        firstName:       p.firstName,
-        lastName:        p.lastName,
-        cnicOrPassport:  p.cnicOrPassport ?? "",
-        guardianCnic:    p.guardianCnic ?? "",
-        dateOfBirth:     p.dateOfBirth,
-        nationalityId:   p.nationalityId,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        cnicOrPassport: p.cnicOrPassport ?? "",
+        guardianCnic: p.guardianCnic ?? "",
+        dateOfBirth: p.dateOfBirth,
+        nationalityId: p.nationalityId,
         nationalityCode: p.nationalityCode,
         isLeadPassenger: p.isLeadPassenger,
-        title:           (p.title ?? null) as "MR" | "MRS" | "MS" | "MASTER" | "MISS" | null,
-        contactEmail:    p.isLeadPassenger ? leadEmail : shareContact ? leadEmail : (p.contactEmail ?? ""),
-        contactPhone:    p.isLeadPassenger ? leadPhone : shareContact ? leadPhone : (p.contactPhone ?? ""),
+        title: (p.title ?? null) as "MR" | "MRS" | "MS" | "MASTER" | "MISS" | null,
+        contactEmail: p.isLeadPassenger ? leadEmail : shareContact ? leadEmail : (p.contactEmail ?? ""),
+        contactPhone: p.isLeadPassenger ? leadPhone : shareContact ? leadPhone : (p.contactPhone ?? ""),
       }));
 
       const addOnsPayload = Object.entries(selectedAddOns)
@@ -1700,9 +1706,9 @@ export default function BookPage() {
 
       // 1. Create outbound booking
       const booking = await publicApi.createBooking(t, {
-        slotId:     activeSlotId!,
+        slotId: activeSlotId!,
         passengers: paxList,
-        phone:      leadPhone,
+        phone: leadPhone,
         ...(selectedSeatIds.length > 0 ? { seatIds: selectedSeatIds } : {}),
         ...(activeQuoteId ? { quoteId: activeQuoteId } : {}),
         ...(addOnsPayload.length > 0 ? { addOns: addOnsPayload } : {}),
@@ -1712,9 +1718,9 @@ export default function BookPage() {
       if (tripType === "round_trip" && fwReturnFlight) {
         try {
           await publicApi.createBooking(t, {
-            slotId:     fwReturnFlight.id,
+            slotId: fwReturnFlight.id,
             passengers: paxList,
-            phone:      leadPhone,
+            phone: leadPhone,
             ...(fwReturnFlight.quoteId ? { quoteId: fwReturnFlight.quoteId } : {}),
           });
         } catch {
@@ -1728,9 +1734,10 @@ export default function BookPage() {
       return { booking, pi };
     },
     onSuccess: ({ booking, pi }) => {
-      setPendingBooking({ pricing: booking.pricing,
-        bookingId:     booking.bookingId,
-        pnr:           booking.pnr,
+      setPendingBooking({
+        pricing: booking.pricing,
+        bookingId: booking.bookingId,
+        pnr: booking.pnr,
         holdExpiresAt: booking.holdExpiresAt,
         totalAmountUsd: booking.totalAmountUsd,
       });
@@ -1768,12 +1775,12 @@ export default function BookPage() {
   // ── Computed ──────────────────────────────────────────────────────────────
 
   // Origins = airports that appear as an origin in at least one active route
-  const origins  = useMemo(
+  const origins = useMemo(
     () => [...new Set(fwRoutes.map((r) => r.origin))].sort(),
     [fwRoutes],
   );
   // Destinations = airports reachable from selected origin via an active route
-  const fwDests  = useMemo(
+  const fwDests = useMemo(
     () => [...new Set(fwRoutes.filter((r) => r.origin === fwOrigin).map((r) => r.destination))].sort(),
     [fwRoutes, fwOrigin],
   );
@@ -1863,7 +1870,7 @@ export default function BookPage() {
         )}
 
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <div className={cn(
+     <div className={cn(
           "grid gap-6",
           "lg:grid-cols-[minmax(0,1fr)_360px]",
         )}>
@@ -3235,7 +3242,7 @@ export default function BookPage() {
             </div>
           </div>
         )}
-        </div>{/* /left column */}
+        </div>
 
         {/* ── Sticky Preview Panel ─────────────────────────────────────── */}
         {(() => {
@@ -3409,7 +3416,7 @@ export default function BookPage() {
             </aside>
           );
         })()}
-        </div>{/* /grid */}
+        </div>
       </div>
 
       {/* ── OTP Modal — shown before payment if not logged in ───────────────── */}
