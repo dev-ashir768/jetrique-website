@@ -22,10 +22,6 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return json.data as T;
 }
 
-export interface OperationalCity {
-  id: string; name: string; code: string; province: string; region: string;
-}
-
 export interface Nationality {
   id: number; name: string; code: string; flag: string | null;
 }
@@ -39,7 +35,6 @@ export interface CityAirportGroup {
 }
 
 export const publicApi = {
-  getOperationalCities:  () => request<OperationalCity[]>('/public/operational-cities'),
   getAirportsGrouped:    () => request<CityAirportGroup[]>('/public/airports/grouped'),
   getNationalities:      (token: string) => request<Nationality[]>('/nationalities', { token }),
   getRoutes:       ()                      => request<Route[]>('/public/routes'),
