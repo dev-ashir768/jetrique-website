@@ -36,7 +36,7 @@ export interface CityAirportGroup {
 
 export const publicApi = {
   getAirportsGrouped:    () => request<CityAirportGroup[]>('/public/airports/grouped'),
-  getNationalities:      (token: string) => request<Nationality[]>('/nationalities', { token }),
+  getNationalities:      () => request<Nationality[]>('/nationalities'),
   getRoutes:       ()                      => request<Route[]>('/public/routes'),
   getProducts:     (q?: ProductsQuery)     => request<PublicProduct[]>(`/public/products${q ? '?' + new URLSearchParams(q as unknown as Record<string,string>) : ''}`),
   getProductSlots: (productId: string)     => request<ProductSlot[]>(`/public/products/${productId}/slots`),

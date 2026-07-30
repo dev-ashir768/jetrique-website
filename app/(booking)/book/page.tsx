@@ -314,18 +314,23 @@ function NationalityCombobox({
   onChange: (id: number, code: string) => void;
   hasError?: boolean;
 }) {
-  const [open,  setOpen]  = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const [open,        setOpen]        = useState(false);
+  const [query,       setQuery]       = useState("");
+  const [activeIdx,   setActiveIdx]   = useState(-1);
+  const ref     = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setActiveIdx(-1); } };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const selected  = nationalities.find((n) => n.id === value);
-  const filtered  = useMemo(
+  // reset active index when query changes
+  useEffect(() => { setActiveIdx(-1); }, [query]);
+
+  const selected = nationalities.find((n) => n.id === value);
+  const filtered = useMemo(
     () => query
       ? nationalities.filter((n) => n.name.toLowerCase().includes(query.toLowerCase()) || n.code.toLowerCase().includes(query.toLowerCase()))
       : nationalities,
@@ -334,19 +339,41 @@ function NationalityCombobox({
 
   function select(n: Nationality) {
     onChange(n.id, n.code);
-    setQuery("");
-    setOpen(false);
+    setQuery(""); setOpen(false); setActiveIdx(-1);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) { if (e.key === "ArrowDown" || e.key === "Enter") { setOpen(true); e.preventDefault(); } return; }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => {
+        const next = Math.min(i + 1, filtered.length - 1);
+        listRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
+        return next;
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => {
+        const next = Math.max(i - 1, 0);
+        listRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
+        return next;
+      });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIdx >= 0 && filtered[activeIdx]) select(filtered[activeIdx]);
+    } else if (e.key === "Escape") {
+      setOpen(false); setActiveIdx(-1);
+    }
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" onKeyDown={handleKeyDown}>
       <button type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setOpen((o) => !o); setActiveIdx(-1); }}
         className={cn(
           "w-full flex items-center justify-between gap-2 text-sm rounded-[8px] border-2 px-3 py-[9px] bg-white transition-all",
           hasError  ? "border-red-300 bg-red-50/30"
             : open ? "border-[#8cc63f]"
-            : selected ? "border-neutral-200 hover:border-[#8cc63f]/50"
             : "border-neutral-200 hover:border-[#8cc63f]/50",
         )}>
         <span className={cn("truncate text-sm", selected ? "text-neutral-800 font-medium" : "text-neutral-400 font-normal")}>
@@ -370,14 +397,16 @@ function NationalityCombobox({
               )}
             </div>
           </div>
-          <div className="max-h-52 overflow-y-auto py-1">
+          <div ref={listRef} className="max-h-52 overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-xs text-neutral-400 text-center">No results</p>
-            ) : filtered.map((n) => (
+            ) : filtered.map((n, idx) => (
               <button key={n.id} type="button" onClick={() => select(n)}
                 className={cn(
                   "w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2",
-                  value === n.id ? "bg-[#f0f9e8] text-[#8cc63f] font-medium" : "text-neutral-700 hover:bg-neutral-50",
+                  activeIdx === idx ? "bg-[#8cc63f]/10 text-[#8cc63f]" :
+                  value === n.id   ? "bg-[#f0f9e8] text-[#8cc63f] font-medium" :
+                  "text-neutral-700 hover:bg-neutral-50",
                 )}>
                 <span>{n.flag ? `${n.flag} ` : ""}{n.name}</span>
                 {value === n.id && <Check className="size-3.5 shrink-0" />}
@@ -731,23 +760,74 @@ function HelCalendar({
 
 function FwCalendar({
   availDates, priceByDate, selectedDate, onSelect, minDate,
+  // range mode props
+  rangeMode, returnAvailDates, returnPriceByDate, returnDate, onReturnSelect,
 }: {
   availDates: Set<string>;
   priceByDate: Record<string, number | null>;
   selectedDate: string;
   onSelect: (d: string) => void;
   minDate?: string;
+  rangeMode?: boolean;
+  returnAvailDates?: Set<string>;
+  returnPriceByDate?: Record<string, number | null>;
+  returnDate?: string;
+  onReturnSelect?: (d: string) => void;
 }) {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const today  = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const minDt  = useMemo(() => { if (!minDate) return today; const d = new Date(minDate); d.setHours(0,0,0,0); return d > today ? d : today; }, [minDate]); // eslint-disable-line react-hooks/exhaustive-deps
   const [vy, setVy] = useState(today.getFullYear());
   const [vm, setVm] = useState(today.getMonth());
   const [ny, nm]    = useMemo(() => addMonths(vy, vm, 1), [vy, vm]);
   const isNow       = vy === today.getFullYear() && vm === today.getMonth();
 
+  // hover date for range highlight preview
+  const [hoverDate, setHoverDate] = useState<string>("");
+
+  const depDate = selectedDate;
+  const retDate = rangeMode ? (returnDate ?? "") : "";
+
+  // range highlight: between dep and ret (or dep and hover if ret not set)
+  const rangeEnd = rangeMode && !retDate ? hoverDate : retDate;
+
+  function isInRange(dateStr: string) {
+    if (!rangeMode || !depDate || !rangeEnd) return false;
+    const [a, b] = depDate < rangeEnd ? [depDate, rangeEnd] : [rangeEnd, depDate];
+    return dateStr > a && dateStr < b;
+  }
+
+  function handleDayClick(dateStr: string, isAvail: boolean) {
+    if (!isAvail) return;
+    if (!rangeMode) { onSelect(dateStr); return; }
+
+    const isOutbound = availDates.has(dateStr);
+    const isReturn   = returnAvailDates?.has(dateStr) ?? false;
+
+    if (!depDate || (depDate && retDate)) {
+      // No dep set, or both already set → start fresh: only outbound dates can be departure
+      if (isOutbound) { onSelect(dateStr); onReturnSelect?.(""); }
+    } else {
+      // Departure set, return not yet chosen
+      if (dateStr < depDate) {
+        // Clicked before dep → restart with this as new departure (outbound only)
+        if (isOutbound) { onSelect(dateStr); onReturnSelect?.(""); }
+      } else if (dateStr === depDate) {
+        // Same date → clear both
+        onSelect(""); onReturnSelect?.("");
+      } else if (isReturn) {
+        // Valid return date on the reverse route → set as return
+        onReturnSelect?.(dateStr);
+      } else if (isOutbound) {
+        // Outbound-only date clicked after dep → restart dep from this date
+        onSelect(dateStr); onReturnSelect?.("");
+      }
+    }
+  }
+
   function renderMonth(year: number, month: number) {
     const days  = new Date(year, month + 1, 0).getDate();
     const start = new Date(year, month, 1).getDay();
+
     return (
       <div className="flex-1 min-w-[240px]">
         <div className="flex items-center justify-center py-2 border-b border-neutral-100">
@@ -765,28 +845,56 @@ function FwCalendar({
             const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
             const dt      = new Date(year, month, day);
             const isPast  = dt < minDt;
-            const has     = !isPast && availDates.has(dateStr);
-            const isSel   = selectedDate === dateStr;
-            const price   = has ? priceByDate[dateStr] : null;
+
+            // In range mode: outbound dates selectable as dep; return only if return route has flights
+            const hasOut  = !isPast && availDates.has(dateStr);
+            const hasRet  = rangeMode && !isPast && (returnAvailDates?.has(dateStr) ?? false);
+            const has     = hasOut || hasRet;
+
+            const isDepSel = dateStr === depDate;
+            const isRetSel = rangeMode && dateStr === retDate;
+            const isSel    = isDepSel || isRetSel;
+            const inRange  = isInRange(dateStr);
+
+            // Price: if it's departure date show outbound price, else return price
+            const price = isDepSel
+              ? (hasOut ? priceByDate[dateStr] : null)
+              : isRetSel || (rangeMode && hasRet && !hasOut)
+                ? (returnPriceByDate?.[dateStr] ?? null)
+                : hasOut ? priceByDate[dateStr] : null;
+
             return (
               <button key={day} type="button"
                 disabled={isPast || !has}
-                onClick={() => has && onSelect(dateStr)}
+                onClick={() => handleDayClick(dateStr, !isPast && !!has)}
+                onMouseEnter={() => rangeMode && setHoverDate(dateStr)}
+                onMouseLeave={() => rangeMode && setHoverDate("")}
                 className={cn(
-                  "h-14 flex flex-col items-center justify-center gap-0.5 border-b border-neutral-50 transition-all",
-                  isPast ? "opacity-25 cursor-not-allowed" : !has ? "cursor-default" : "hover:opacity-80 cursor-pointer",
+                  "h-14 flex flex-col items-center justify-center gap-0.5 border-b border-neutral-50 transition-all relative",
+                  isPast ? "opacity-25 cursor-not-allowed" : !has ? "opacity-40 cursor-not-allowed" : "hover:opacity-80 cursor-pointer",
+                  inRange && "bg-[#f0f9e8]",
                 )}
-                style={isSel ? { background: BRAND } : has ? { background: "#f0f9e8" } : {}}
+                style={isSel ? { background: BRAND } : (!inRange && has) ? { background: "#f0f9e8" } : {}}
               >
-                <span className={cn("text-sm font-semibold", isSel ? "text-white" : isPast ? "text-neutral-300" : "text-neutral-800")}>
+                {/* range connector line */}
+                {inRange && (
+                  <div className="absolute inset-0 bg-[#8cc63f]/10 pointer-events-none" />
+                )}
+                <span className={cn("text-sm font-semibold relative z-10", isSel ? "text-white" : isPast ? "text-neutral-300" : "text-neutral-800")}>
                   {day}
                 </span>
                 {has && price != null && (
-                  <span className={cn("text-[9px] font-semibold leading-none", isSel ? "text-white/90" : "text-[#8cc63f]")}>
+                  <span className={cn("text-[9px] font-semibold leading-none relative z-10", isSel ? "text-white/90" : "text-[#8cc63f]")}>
                     ${Math.round(price)}
                   </span>
                 )}
-                {has && price == null && !isSel && <span className="size-1 rounded-full bg-[#8cc63f]" />}
+                {has && price == null && !isSel && <span className="size-1 rounded-full bg-[#8cc63f] relative z-10" />}
+                {/* dep / ret label */}
+                {rangeMode && (isDepSel || isRetSel) && (
+                  <span className="text-[8px] text-white/80 font-medium leading-none relative z-10">
+                    {isDepSel && isRetSel ? "DEP/RET" : isDepSel ? "DEP" : "RET"}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -795,8 +903,33 @@ function FwCalendar({
     );
   }
 
+  // header hint for range mode
+  const hint = rangeMode
+    ? (!depDate ? "Select departure date" : !retDate ? "Now select return date" : `${fmtDate(depDate)} → ${fmtDate(retDate)}`)
+    : "";
+
   return (
     <div className="bg-white border border-neutral-100 rounded-[10px] overflow-hidden shadow-sm">
+      {rangeMode && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-neutral-50 border-b border-neutral-100">
+          <div className={cn("flex-1 flex items-center gap-2 rounded-[6px] px-2 py-1 text-xs font-medium", depDate ? "text-neutral-800" : "text-neutral-400")}>
+            <span className="size-2 rounded-full shrink-0" style={{ background: BRAND }} />
+            {depDate ? fmtDate(depDate) : "Departure"}
+          </div>
+          <ArrowRight className="size-3 text-neutral-300 shrink-0" />
+          <div className={cn("flex-1 flex items-center gap-2 rounded-[6px] px-2 py-1 text-xs font-medium", retDate ? "text-neutral-800" : "text-neutral-400")}>
+            <span className="size-2 rounded-full border-2 shrink-0" style={{ borderColor: BRAND }} />
+            {retDate ? fmtDate(retDate) : "Return"}
+          </div>
+          {(depDate || retDate) && (
+            <button type="button" onClick={() => { onSelect(""); onReturnSelect?.(""); }}
+              className="text-[10px] text-neutral-400 hover:text-neutral-600 px-1">
+              Clear
+            </button>
+          )}
+          <span className="text-[10px] text-neutral-400 ml-1">{hint}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-100">
         <button type="button" onClick={() => { const [y,m] = addMonths(vy,vm,-1); setVy(y); setVm(m); }}
           disabled={isNow} className="p-1.5 rounded-[6px] hover:bg-neutral-200 disabled:opacity-30 transition-colors">
@@ -808,6 +941,13 @@ function FwCalendar({
           <ChevronRight className="size-4 text-neutral-600" />
         </button>
       </div>
+      {/* No return flights warning */}
+      {rangeMode && depDate && !retDate && returnAvailDates && returnAvailDates.size === 0 && (
+        <div className="px-4 py-3 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
+          <AlertCircle className="size-3.5 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-700">No return flights available on this route. Try one-way instead.</p>
+        </div>
+      )}
       <div className="flex divide-x divide-neutral-100 overflow-x-auto">
         {renderMonth(vy, vm)}
         {renderMonth(ny, nm)}
@@ -823,76 +963,103 @@ function FlightCard({ flight, isSelected, requiredSeats, onClick }: {
 }) {
   const dur      = fmtDuration(flight.scheduledDeparture, flight.scheduledArrival);
   const hasSeats = flight.availableSeats >= requiredSeats;
+
   return (
     <button type="button" onClick={onClick} disabled={!hasSeats}
       className={cn(
-        "group w-full text-left rounded-[12px] border transition-all",
+        "group w-full text-left rounded-[14px] border transition-all overflow-hidden",
         !hasSeats && "opacity-40 cursor-not-allowed",
         isSelected
-          ? "border-[#8cc63f] bg-[#f0f9e8] shadow-sm"
-          : "border-neutral-200 bg-white hover:border-[#8cc63f]/60 hover:shadow-sm",
+          ? "border-[#8cc63f] shadow-md ring-1 ring-[#8cc63f]/30"
+          : "border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-md",
       )}
     >
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 py-4">
-        {/* Operator logo */}
-        <div className="size-10 rounded-full bg-neutral-100 flex items-center justify-center overflow-hidden shrink-0">
-          {flight.operatorLogo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={flight.operatorLogo} alt="" className="size-full object-cover" />
-          ) : (
-            <Plane className="size-4 text-neutral-400" />
-          )}
-        </div>
-
-        {/* Times + route */}
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-base font-semibold text-neutral-900 tabular-nums">{fmtTime(flight.scheduledDeparture)}</span>
-            <span className="text-neutral-300">–</span>
-            <span className="text-base font-semibold text-neutral-900 tabular-nums">
-              {flight.scheduledArrival ? fmtTime(flight.scheduledArrival) : "—"}
+      <div className="flex items-stretch">
+        {/* Left: operator + flight info */}
+        <div className="flex-1 flex items-center gap-5 px-5 py-4 bg-white">
+          {/* Operator logo + name */}
+          <div className="flex flex-col items-center gap-1.5 shrink-0 w-16">
+            <div className="size-11 rounded-full bg-neutral-100 flex items-center justify-center overflow-hidden border border-neutral-200">
+              {flight.operatorLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={flight.operatorLogo} alt="" className="size-full object-cover" />
+              ) : (
+                <Plane className="size-5 text-neutral-400" />
+              )}
+            </div>
+            <span className="text-[10px] text-neutral-500 font-medium text-center leading-tight line-clamp-2">
+              {flight.operatorName ?? "Jetrique"}
+            </span>
+            <span className="text-[9px] text-neutral-300 font-mono">
+              {flight.flightNumber || flight.slotCode}
             </span>
           </div>
-          <p className="text-xs text-neutral-500 mt-0.5 truncate">
-            {flight.operatorName ?? "Jetrique"} · {flight.origin} → {flight.destination}
-          </p>
+
+          {/* Times — duration badge — route */}
+          <div className="flex-1 min-w-0">
+            {/* Time row */}
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-neutral-900 tabular-nums tracking-tight">
+                {fmtTime(flight.scheduledDeparture)}
+              </span>
+              {/* Duration pill */}
+              <div className="flex flex-col items-center gap-0.5 shrink-0">
+                <span className="text-[10px] text-neutral-400 font-medium">{dur ?? "—"}</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-px bg-neutral-300" />
+                  <Plane className="size-3 text-neutral-400 -rotate-0" />
+                  <div className="w-6 h-px bg-neutral-300" />
+                </div>
+                <span className="text-[9px] text-neutral-400">Non-stop</span>
+              </div>
+              <span className="text-2xl font-bold text-neutral-900 tabular-nums tracking-tight">
+                {flight.scheduledArrival ? fmtTime(flight.scheduledArrival) : "—"}
+              </span>
+            </div>
+            {/* Route + meta */}
+            <div className="flex items-center gap-1 mt-1.5 text-xs text-neutral-500">
+              <span>{flight.origin}</span>
+              <span className="text-neutral-300">-</span>
+              <span className="text-neutral-400">Nonstop</span>
+              <span className="text-neutral-300">-</span>
+              <span>{flight.destination}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-[10px] text-neutral-400">
+              <span>{flight.aircraft.name}</span>
+              {flight.distanceNm && <><span>·</span><span>{flight.distanceNm} NM</span></>}
+            </div>
+          </div>
         </div>
 
-        {/* Duration + stops */}
-        <div className="hidden sm:block text-right shrink-0 min-w-[90px]">
-          <p className="text-sm font-medium text-neutral-700">{dur ?? "—"}</p>
-          <p className="text-[11px] text-neutral-400">Non-stop</p>
-        </div>
-
-        {/* Price / seat pill */}
-        <div className="text-right shrink-0 col-start-3 sm:col-start-auto flex flex-col items-end gap-1">
+        {/* Right: price CTA */}
+        <div className={cn(
+          "flex flex-col items-center justify-center px-5 py-4 shrink-0 min-w-[130px] transition-colors",
+          isSelected ? "bg-[#8cc63f]" : "bg-[#3a3a3a] group-hover:bg-[#4a4a4a]",
+        )}>
           {flight.pricePerSeat != null ? (
-            <p className="text-lg font-bold text-neutral-900 tabular-nums">${Math.round(flight.pricePerSeat)}</p>
+            <>
+              <span className="text-[10px] text-white/60 font-medium mb-0.5">per person</span>
+              <span className="text-xl font-bold text-white tabular-nums">
+                ${Math.round(flight.pricePerSeat)}
+              </span>
+            </>
           ) : (
-            <p className="text-xs text-neutral-400">On request</p>
+            <span className="text-xs text-white/70">On request</span>
           )}
           <span className={cn(
-            "text-[10px] px-2 py-0.5 rounded-full font-medium",
-            flight.availableSeats > 3 ? "bg-[#f0f9e8] text-[#8cc63f]" :
-            flight.availableSeats > 0 ? "bg-amber-50 text-amber-600" :
-            "bg-red-50 text-red-500",
+            "text-[9px] mt-2 px-2 py-0.5 rounded-full font-semibold",
+            flight.availableSeats > 3 ? "bg-white/20 text-white" :
+            flight.availableSeats > 0 ? "bg-amber-400/30 text-amber-200" :
+            "bg-red-400/30 text-red-200",
           )}>
             {flight.availableSeats === 0 ? "Full" : `${flight.availableSeats} seats`}
           </span>
+          {isSelected && (
+            <span className="mt-2 flex items-center gap-1 text-[10px] font-bold text-white">
+              <Check className="size-3" /> Selected
+            </span>
+          )}
         </div>
-      </div>
-
-      {/* Meta strip */}
-      <div className="px-4 py-2 border-t border-neutral-100 flex items-center flex-wrap gap-2 text-[11px] text-neutral-400 bg-neutral-50/60 rounded-b-[12px]">
-        <span className="font-mono">{flight.flightNumber || flight.slotCode}</span>
-        <span>· {flight.aircraft.name}</span>
-        {flight.aircraft.registrationNo && <span>· {flight.aircraft.registrationNo}</span>}
-        {flight.distanceNm && <span>· {flight.distanceNm} NM</span>}
-        {isSelected && (
-          <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-white px-2 py-0.5 rounded-full" style={{ background: BRAND }}>
-            <Check className="size-3" /> Selected
-          </span>
-        )}
       </div>
     </button>
   );
@@ -1120,18 +1287,25 @@ export default function BookPage() {
   const topRef = useRef<HTMLDivElement>(null);
   function goToStep(s: Step) {
     setStep(s);
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
   }
 
   const [step,         setStep]         = useState<Step>("search");
   const [bookingKind,  setBookingKind]  = useState<"helicopter" | "fixed_wing">("helicopter");
   const [tripType,     setTripType]     = useState<"one_way" | "round_trip">("one_way");
+  // flights only show after user explicitly clicks Search
+  const [hasSearched,  setHasSearched]  = useState(false);
   const [paxCounts, setPaxCounts] = useState<PaxCounts>({ adults: 1, children: 0, infants: 0 });
   // Every passenger occupies a seat (infants included) — no lap-infant concept anymore.
   const passengerCount = paxCounts.adults + paxCounts.children + paxCounts.infants;
   const seatCount      = passengerCount;
   const [shareContact, setShareContact] = useState<boolean>(true);
   const [error,        setError]        = useState<string | null>(null);
+  const [searchErr,    setSearchErr]    = useState<{ origin?: string; dest?: string; date?: string } | null>(null);
 
   // Helicopter state
   const [selectedProduct, setSelectedProduct] = useState<PublicProduct | null>(null);
@@ -1150,7 +1324,7 @@ export default function BookPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(FLIGHT_DRAFT_KEY);
+      const raw = sessionStorage.getItem(FLIGHT_DRAFT_KEY);
       if (!raw) return;
       const d = JSON.parse(raw) as {
         bookingKind?: string; tripType?: string;
@@ -1178,7 +1352,7 @@ export default function BookPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(FLIGHT_DRAFT_KEY, JSON.stringify({
+      sessionStorage.setItem(FLIGHT_DRAFT_KEY, JSON.stringify({
         bookingKind, tripType, paxCounts,
         fwOrigin, fwDest, fwDate, fwReturnDate, fwFlight, fwReturnFlight,
         selectedProduct, helDate, selectedSlot,
@@ -1227,8 +1401,7 @@ export default function BookPage() {
 
   const { data: nationalities = [] } = useQuery<Nationality[]>({
     queryKey: ["nationalities"],
-    queryFn:  () => publicApi.getNationalities(token!),
-    enabled:  !!token,
+    queryFn:  () => publicApi.getNationalities(),
     staleTime: 60 * 60_000,
   });
 
@@ -1326,7 +1499,7 @@ export default function BookPage() {
       const seed = { passengers: [emptyPassenger(true)] };
       if (typeof window === "undefined") return seed;
       try {
-        const saved = localStorage.getItem(FORM_DRAFT_KEY);
+        const saved = sessionStorage.getItem(FORM_DRAFT_KEY);
         if (saved) {
           const raw = JSON.parse(saved) as unknown;
           const result = formSchema.safeParse(raw);
@@ -1450,7 +1623,7 @@ export default function BookPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({ passengers: formDataPassengers }));
+      sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({ passengers: formDataPassengers }));
     } catch { /* ignore */ }
   }, [passengersJson]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1522,7 +1695,7 @@ export default function BookPage() {
 
   async function handlePaymentSuccess() {
     if (!pendingBooking || !token) return;
-    try { localStorage.removeItem(FORM_DRAFT_KEY); localStorage.removeItem(FLIGHT_DRAFT_KEY); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(FORM_DRAFT_KEY); sessionStorage.removeItem(FLIGHT_DRAFT_KEY); } catch { /* ignore */ }
     // Actually verify the payment status before showing confirmation —
     // Stripe's client-side "succeeded" only means the card was authorized,
     // not that our backend has reconciled the webhook yet.
@@ -1625,7 +1798,7 @@ export default function BookPage() {
 
   return (
     <section className="w-full py-10 px-4">
-      <div ref={topRef} className="container max-w-6xl mx-auto">
+      <div ref={topRef} className="container max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-medium text-neutral-800">Book Your Flight</h1>
@@ -1642,9 +1815,10 @@ export default function BookPage() {
           </div>
         )}
 
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <div className={cn(
           "grid gap-6",
-          activeSlotId ? "lg:grid-cols-[minmax(0,1fr)_340px]" : "",
+          "lg:grid-cols-[minmax(0,1fr)_360px]",
         )}>
         <div className="min-w-0">
         {/* ── STEP: Search ────────────────────────────────────────────────── */}
@@ -1668,7 +1842,12 @@ export default function BookPage() {
                     setFwReturnDate(""); setFwReturnFlight(null);
                   }}
                 />
-                <PaxDropdown value={paxCounts} onChange={setPaxCounts} />
+                <PaxDropdown value={paxCounts} onChange={(v) => {
+                  setPaxCounts(v);
+                  // Clear saved draft so stale passenger data doesn't bleed into new count
+                  try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ }
+                  setHasSearched(false);
+                }} />
                 <MiniDropdown
                   icon={bookingKind === "helicopter" ? <Helicopter className="size-3.5" /> : <Plane className="size-3.5" />}
                   value={bookingKind === "helicopter" ? "Helicopter" : "Fixed Wing"}
@@ -1703,7 +1882,7 @@ export default function BookPage() {
                           placeholder="City or airport"
                           hideChevron
                           buttonClassName="rounded-r-[6px]"
-                          onChange={(v) => { setFwOrigin(v); setFwDest(""); setFwDate(""); setFwFlight(null); }}
+                          onChange={(v) => { setFwOrigin(v); setFwDest(""); setFwDate(""); setFwFlight(null); setSearchErr(null); setHasSearched(false); }}
                         />
                       ) : (
                         <Combobox
@@ -1731,7 +1910,7 @@ export default function BookPage() {
                           hideChevron
                           buttonClassName="rounded-l-[6px]"
                           disabled={!fwOrigin}
-                          onChange={(v) => { setFwDest(v); setFwDate(""); setFwFlight(null); }}
+                          onChange={(v) => { setFwDest(v); setFwDate(""); setFwFlight(null); setSearchErr(null); setHasSearched(false); }}
                         />
                       ) : (
                         <Combobox
@@ -1787,28 +1966,17 @@ export default function BookPage() {
                           <CalendarDays className="size-4 text-neutral-400 shrink-0" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          numberOfMonths={2}
-                          selected={{
-                            from: fwDate       ? new Date(fwDate)       : undefined,
-                            to:   fwReturnDate ? new Date(fwReturnDate) : undefined,
-                          }}
-                          onSelect={(range) => {
-                            if (!range) return;
-                            if (range.from && isValid(range.from)) {
-                              const depIso = format(range.from, "yyyy-MM-dd");
-                              setFwDate(depIso); setFwFlight(null); setSelectedSeatIds([]);
-                              if (range.to && isValid(range.to)) {
-                                const retIso = format(range.to, "yyyy-MM-dd");
-                                setFwReturnDate(retIso >= depIso ? retIso : depIso);
-                              } else {
-                                setFwReturnDate("");
-                              }
-                            }
-                          }}
-                          disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                      <PopoverContent className="w-auto p-0 min-w-[620px]" align="start">
+                        <FwCalendar
+                          rangeMode
+                          availDates={fwAvailDates}
+                          priceByDate={fwPriceByDate}
+                          selectedDate={fwDate}
+                          onSelect={(d) => { setFwDate(d); setFwFlight(null); setSelectedSeatIds([]); setSearchErr(null); setHasSearched(false); }}
+                          returnAvailDates={fwReturnAvailDates}
+                          returnPriceByDate={fwReturnPriceByDate}
+                          returnDate={fwReturnDate}
+                          onReturnSelect={(d) => { setFwReturnDate(d); setFwReturnFlight(null); }}
                         />
                       </PopoverContent>
                     </Popover>
@@ -1843,22 +2011,30 @@ export default function BookPage() {
                             <CalendarDays className="size-4 text-neutral-400 shrink-0" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              (bookingKind === "fixed_wing" ? fwDate : helDate)
-                                ? new Date(bookingKind === "fixed_wing" ? fwDate : helDate)
-                                : undefined
-                            }
-                            onSelect={(d) => {
-                              if (!d || !isValid(d)) return;
-                              const iso = format(d, "yyyy-MM-dd");
-                              if (bookingKind === "fixed_wing") { setFwDate(iso); setFwFlight(null); setSelectedSeatIds([]); }
-                              else                              { setHelDate(iso); setSelectedSlot(null); setSelectedSeatIds([]); }
-                            }}
-                            disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
-                          />
+                        <PopoverContent className="w-auto p-0 min-w-[620px]" align="start">
+                          {bookingKind === "fixed_wing" ? (
+                            <FwCalendar
+                              availDates={fwAvailDates}
+                              priceByDate={fwPriceByDate}
+                              selectedDate={fwDate}
+                              onSelect={(d) => {
+                                setSearchErr(null); setHasSearched(false);
+                                setFwDate(d); setFwFlight(null); setSelectedSeatIds([]);
+                              }}
+                            />
+                          ) : (
+                            <Calendar
+                              mode="single"
+                              selected={helDate ? new Date(helDate) : undefined}
+                              onSelect={(d) => {
+                                if (!d || !isValid(d)) return;
+                                const iso = format(d, "yyyy-MM-dd");
+                                setSearchErr(null); setHasSearched(false);
+                                setHelDate(iso); setSelectedSlot(null); setSelectedSeatIds([]);
+                              }}
+                              disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                            />
+                          )}
                         </PopoverContent>
                       </Popover>
                       <button type="button"
@@ -1880,10 +2056,51 @@ export default function BookPage() {
                 </div>
               </div>
 
-              {/* Search button */}
-              <div className="flex items-center justify-end pt-1">
+              {/* Search button + inline errors */}
+              {searchErr && (
+                <div className="flex flex-wrap gap-2">
+                  {searchErr.origin && (
+                    <p className="flex items-center gap-1 text-xs text-red-500"><AlertCircle className="size-3 shrink-0" />{searchErr.origin}</p>
+                  )}
+                  {searchErr.dest && (
+                    <p className="flex items-center gap-1 text-xs text-red-500"><AlertCircle className="size-3 shrink-0" />{searchErr.dest}</p>
+                  )}
+                  {searchErr.date && (
+                    <p className="flex items-center gap-1 text-xs text-red-500"><AlertCircle className="size-3 shrink-0" />{searchErr.date}</p>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {/* Clear button — only shown when something is selected */}
+                {(fwOrigin || fwDest || fwDate || fwFlight || selectedProduct || helDate || selectedSlot) && (
+                  <button type="button"
+                    onClick={() => {
+                      setFwOrigin(""); setFwDest(""); setFwDate(""); setFwReturnDate("");
+                      setFwFlight(null); setSelectedProduct(null); setHelDate("");
+                      setSelectedSlot(null); setSelectedSeatIds([]); setSearchErr(null); setHasSearched(false);
+                      setPaxCounts({ adults: 1, children: 0, infants: 0 });
+                      replace([emptyPassenger(true)]);
+                      try { sessionStorage.removeItem(FORM_DRAFT_KEY); sessionStorage.removeItem(FLIGHT_DRAFT_KEY); } catch { /* ignore */ }
+                    }}
+                    className="flex items-center gap-1.5 h-10 px-4 rounded-[10px] border border-neutral-200 text-neutral-500 text-sm font-medium hover:bg-neutral-50 hover:border-neutral-300 transition-all">
+                    <XIcon className="size-3.5" /> Clear
+                  </button>
+                )}
                 <button type="button"
-                  onClick={() => { /* results render live below as state changes */ }}
+                  onClick={() => {
+                    const errs: typeof searchErr = {};
+                    if (bookingKind === "fixed_wing") {
+                      if (!fwOrigin) errs.origin = "Please select a departure city";
+                      if (!fwDest)   errs.dest   = "Please select a destination city";
+                      if (!fwDate)   errs.date   = "Please select a departure date";
+                      if (tripType === "round_trip" && fwDate && !fwReturnDate) errs.date = "Please select a return date";
+                    } else {
+                      if (!selectedProduct) errs.origin = "Please select a route";
+                      if (!helDate)         errs.date   = "Please select a departure date";
+                    }
+                    if (Object.keys(errs).length > 0) { setSearchErr(errs); return; }
+                    setSearchErr(null); setHasSearched(true);
+                  }}
                   className="flex items-center gap-2 h-10 px-6 rounded-[10px] text-white text-sm font-semibold shadow-sm hover:opacity-95 transition-opacity"
                   style={{ background: BRAND }}>
                   <Search className="size-4" /> Search
@@ -1892,7 +2109,7 @@ export default function BookPage() {
             </div>
 
             {/* ── HELICOPTER RESULTS ─────────────────────────────────────── */}
-            {bookingKind === "helicopter" && selectedProduct && helDate && (
+            {hasSearched && bookingKind === "helicopter" && selectedProduct && helDate && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-neutral-700">Available Flights
@@ -1936,8 +2153,8 @@ export default function BookPage() {
                   </div>
                 )}
 
-                {/* Outbound flights */}
-                {fwDate && fwOrigin && fwDest && (
+                {/* Outbound flights — only after Search clicked */}
+                {hasSearched && fwDate && fwOrigin && fwDest && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-neutral-700">
@@ -1961,7 +2178,7 @@ export default function BookPage() {
                 )}
 
                 {/* Round trip — return calendar */}
-                {tripType === "round_trip" && fwFlight && (
+                {hasSearched && tripType === "round_trip" && fwFlight && (
                   <div className="rounded-[10px] border-2 border-dashed border-[#8cc63f]/30 bg-[#f0f9e8]/50 p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="size-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: BRAND }}>↩</div>
@@ -2046,7 +2263,7 @@ export default function BookPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
+                onClick={() => { try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
               >
                 Cancel
@@ -2163,16 +2380,22 @@ export default function BookPage() {
                               control={control}
                               render={({ field, fieldState }) => (
                                 <>
-                                  <select {...field} value={field.value ?? ""}
-                                    className={cn("w-full border-2 rounded-[8px] px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8cc63f]/20 transition-colors",
-                                      fieldState.error ? "border-red-300 bg-red-50/30" : "border-neutral-200 focus:border-[#8cc63f]/50")}>
-                                    <option value="">—</option>
-                                    {titleOpts.map((t) => (
-                                      <option key={t} value={t}>
-                                        {({ MR: "Mr", MRS: "Mrs", MS: "Ms", MASTER: "Master", MISS: "Miss" } as Record<string,string>)[t]}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <div className="relative">
+                                    <select {...field} value={field.value ?? ""}
+                                      className={cn(
+                                        "w-full appearance-none border-2 rounded-[8px] pl-3 pr-8 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8cc63f]/20 transition-colors",
+                                        fieldState.error ? "border-red-300 bg-red-50/30" : "border-neutral-200 focus:border-[#8cc63f]/50",
+                                        !field.value && "text-neutral-400",
+                                      )}>
+                                      <option value="" disabled>Select title…</option>
+                                      {titleOpts.map((t) => (
+                                        <option key={t} value={t}>
+                                          {({ MR: "Mr", MRS: "Mrs", MS: "Ms", MASTER: "Master", MISS: "Miss" } as Record<string,string>)[t]}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+                                  </div>
                                   {fieldState.error && (
                                     <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1.5 font-medium">
                                       <AlertCircle className="size-3 shrink-0" /> {fieldState.error.message}
@@ -2365,7 +2588,7 @@ export default function BookPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
+                  onClick={() => { try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                   className="h-11 px-5 rounded-[10px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
                 >
                   Cancel
@@ -2384,7 +2607,7 @@ export default function BookPage() {
                 <ArrowLeft className="size-3.5" /> Previous
               </button>
               <button type="button"
-                onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
+                onClick={() => { try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium">
                 Cancel
               </button>
@@ -2477,7 +2700,7 @@ export default function BookPage() {
                 <ArrowLeft className="size-3.5" /> Previous
               </button>
               <button type="button"
-                onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
+                onClick={() => { try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                 className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium">
                 Cancel
               </button>
@@ -2645,7 +2868,7 @@ export default function BookPage() {
                   <ArrowLeft className="size-3.5" /> Previous
                 </button>
                 <button type="button"
-                  onClick={() => { try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
+                  onClick={() => { try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ } goToStep("search"); }}
                   className="h-9 px-4 rounded-[8px] border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium">
                   Cancel
                 </button>
@@ -2862,7 +3085,7 @@ export default function BookPage() {
               <HoldCountdown
                 expiresAt={pendingBooking.holdExpiresAt}
                 onExpired={() => {
-                  try { localStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ }
+                  try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch { /* ignore */ }
                   setHoldExpiredMessage("Your seat hold has expired. Please select your flight again.");
                   goToStep("search");
                 }}
@@ -2915,7 +3138,7 @@ export default function BookPage() {
         </div>{/* /left column */}
 
         {/* ── Sticky Preview Panel ─────────────────────────────────────── */}
-        {activeSlotId && (() => {
+        {(() => {
           const flightRoute = bookingKind === "helicopter"
             ? { from: selectedProduct?.route.origin, to: selectedProduct?.route.destination,
                 depIso: selectedSlot?.scheduledDeparture, arrIso: selectedSlot?.scheduledArrival,
@@ -2955,28 +3178,51 @@ export default function BookPage() {
                   <p className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Trip Summary</p>
                 </div>
                 <div className="p-4 space-y-4 text-sm">
-                  {/* Route */}
+                  {/* Route — always show if origin+dest known */}
                   <div>
-                    <div className="flex items-center gap-2 text-neutral-800 font-medium">
-                      <span>{flightRoute.from}</span>
-                      <ArrowRight className="size-3.5 text-neutral-400" />
-                      <span>{flightRoute.to}</span>
-                    </div>
-                    {flightRoute.depIso && (
-                      <p className="text-xs text-neutral-500 mt-1">
-                        {fmtDate(flightRoute.depIso)} · {fmtTime(flightRoute.depIso)}
-                        {flightRoute.arrIso && <> — {fmtTime(flightRoute.arrIso)}</>}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-1.5 text-[11px] text-neutral-500">
-                      {flightRoute.code && <span className="font-mono">{flightRoute.code}</span>}
-                      {flightRoute.aircraft && <span>· {flightRoute.aircraft}</span>}
-                    </div>
-                    {flightRoute.operatorName && (
-                      <div className="flex items-center gap-1.5 mt-2 text-[11px] text-neutral-500">
-                        {flightRoute.operatorLogo &&
-                          <img src={flightRoute.operatorLogo} alt="" className="size-4 rounded object-cover" />}
-                        <span>{flightRoute.operatorName}</span>
+                    {(bookingKind === "fixed_wing" ? (fwOrigin && fwDest) : selectedProduct) ? (
+                      <>
+                        <div className="flex items-center gap-2 text-neutral-800 font-medium text-sm">
+                          <span>{bookingKind === "fixed_wing" ? fwOrigin : selectedProduct?.route.origin}</span>
+                          <ArrowRight className="size-3.5 text-neutral-400" />
+                          <span>{bookingKind === "fixed_wing" ? fwDest : selectedProduct?.route.destination}</span>
+                        </div>
+                        {/* Flight details — shown after flight selected */}
+                        {activeSlotId && flightRoute.depIso && (
+                          <p className="text-xs text-neutral-500 mt-1">
+                            {fmtDate(flightRoute.depIso)} · {fmtTime(flightRoute.depIso)}
+                            {flightRoute.arrIso && <> — {fmtTime(flightRoute.arrIso)}</>}
+                          </p>
+                        )}
+                        {/* Date hint before flight selected */}
+                        {!activeSlotId && step === "search" && (
+                          <p className="text-xs text-neutral-400 mt-1">
+                            {bookingKind === "fixed_wing"
+                              ? !fwDate ? "Select departure date" : !hasSearched ? "Click Search to find flights" : "Select a flight below"
+                              : !helDate ? "Select a date" : "Select a flight below"}
+                          </p>
+                        )}
+                        {activeSlotId && (
+                          <div className="flex items-center gap-2 mt-1.5 text-[11px] text-neutral-500">
+                            {flightRoute.code && <span className="font-mono">{flightRoute.code}</span>}
+                            {flightRoute.aircraft && <span>· {flightRoute.aircraft}</span>}
+                          </div>
+                        )}
+                        {activeSlotId && flightRoute.operatorName && (
+                          <div className="flex items-center gap-1.5 mt-2 text-[11px] text-neutral-500">
+                            {flightRoute.operatorLogo &&
+                              <img src={flightRoute.operatorLogo} alt="" className="size-4 rounded object-cover" />}
+                            <span>{flightRoute.operatorName}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      /* Nothing selected yet */
+                      <div className="flex flex-col items-center py-4 text-center gap-2">
+                        <div className="size-10 rounded-full bg-neutral-50 flex items-center justify-center">
+                          {bookingKind === "helicopter" ? <Helicopter className="size-5 text-neutral-300" /> : <Plane className="size-5 text-neutral-300" />}
+                        </div>
+                        <p className="text-xs text-neutral-400">Select origin &amp; destination to get started</p>
                       </div>
                     )}
                   </div>
@@ -2999,7 +3245,7 @@ export default function BookPage() {
                   {/* Passengers */}
                   <div className="pt-3 border-t border-neutral-100">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Passengers</p>
-                    {formDataPassengers && formDataPassengers.length > 0 && formDataPassengers.some((p) => p.firstName) ? (
+                    {step !== "search" && formDataPassengers && formDataPassengers.length > 0 && formDataPassengers.some((p) => p.firstName) ? (
                       <ul className="space-y-1">
                         {formDataPassengers.map((p, i) => (
                           <li key={i} className="flex items-center gap-2 text-xs text-neutral-700">
