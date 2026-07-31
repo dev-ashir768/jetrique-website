@@ -1276,6 +1276,22 @@ const passengerSchema = z.object({
 const PK_PHONE_RE = /^(\+92|0092|0)3[0-9]{9}$/;
 const INTL_PHONE_RE = /^\+?[0-9\s\-(). ]{7,20}$/;
 
+// Loose schema for draft restoration — no required-field constraints, just shape.
+const passengerDraftSchema = z.object({
+  firstName:       z.string().optional().default(""),
+  lastName:        z.string().optional().default(""),
+  title:           z.enum(PASSENGER_TITLES).optional().nullable().default(null),
+  cnicOrPassport:  z.string().optional().default(""),
+  guardianCnic:    z.string().optional().default(""),
+  dateOfBirth:     z.string().optional().default(""),
+  nationalityId:   z.number().optional().default(0),
+  nationalityCode: z.string().optional().default(""),
+  contactEmail:    z.string().optional().default(""),
+  contactPhone:    z.string().optional().default(""),
+  isLeadPassenger: z.boolean().optional().default(false),
+});
+const formDraftSchema = z.object({ passengers: z.array(passengerDraftSchema) });
+
 const formSchema = z.object({
   passengers: z.array(passengerSchema).min(1),
 }).superRefine((val, ctx) => {
@@ -1541,8 +1557,8 @@ export default function BookPage() {
         const saved = sessionStorage.getItem(FORM_DRAFT_KEY);
         if (saved) {
           const raw = JSON.parse(saved) as unknown;
-          const result = formSchema.safeParse(raw);
-          if (result.success) return result.data;
+          const result = formDraftSchema.safeParse(raw);
+          if (result.success) return result.data as BookingForm;
         }
       } catch { /* ignore */ }
       return seed;
