@@ -1872,7 +1872,7 @@ export default function BookPage() {
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
      <div className={cn(
           "grid gap-6",
-          "lg:grid-cols-[minmax(0,1fr)_360px]",
+          step !== "search" && "lg:grid-cols-[minmax(0,1fr)_360px]",
         )}>
         <div className="min-w-0">
         {/* ── STEP: Search ────────────────────────────────────────────────── */}
@@ -3244,8 +3244,8 @@ export default function BookPage() {
         )}
         </div>
 
-        {/* ── Sticky Preview Panel ─────────────────────────────────────── */}
-        {(() => {
+        {/* ── Sticky Preview Panel — hidden on step 1 (search) ────────────── */}
+        {step !== "search" && (() => {
           const flightRoute = bookingKind === "helicopter"
             ? { from: selectedProduct?.route.origin, to: selectedProduct?.route.destination,
                 depIso: selectedSlot?.scheduledDeparture, arrIso: selectedSlot?.scheduledArrival,
@@ -3301,14 +3301,7 @@ export default function BookPage() {
                             {flightRoute.arrIso && <> — {fmtTime(flightRoute.arrIso)}</>}
                           </p>
                         )}
-                        {/* Date hint before flight selected */}
-                        {!activeSlotId && step === "search" && (
-                          <p className="text-xs text-neutral-400 mt-1">
-                            {bookingKind === "fixed_wing"
-                              ? !fwDate ? "Select departure date" : !hasSearched ? "Click Search to find flights" : "Select a flight below"
-                              : !helDate ? "Select a date" : "Select a flight below"}
-                          </p>
-                        )}
+                        {/* Date hint before flight selected — never shown on step 1 anymore */}
                         {activeSlotId && (
                           <div className="flex items-center gap-2 mt-1.5 text-[11px] text-neutral-500">
                             {flightRoute.code && <span className="font-mono">{flightRoute.code}</span>}
@@ -3352,7 +3345,7 @@ export default function BookPage() {
                   {/* Passengers */}
                   <div className="pt-3 border-t border-neutral-100">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Passengers</p>
-                    {step !== "search" && formDataPassengers && formDataPassengers.length > 0 && formDataPassengers.some((p) => p.firstName) ? (
+                    {formDataPassengers && formDataPassengers.length > 0 && formDataPassengers.some((p) => p.firstName) ? (
                       <ul className="space-y-1">
                         {formDataPassengers.map((p, i) => (
                           <li key={i} className="flex items-center gap-2 text-xs text-neutral-700">
